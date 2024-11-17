@@ -1,6 +1,8 @@
 // components/ui/CollapsibleSection.tsx
 
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown';
+
 
 interface CollapsibleSectionProps {
   title: string;

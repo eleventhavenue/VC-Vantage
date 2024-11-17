@@ -3,10 +3,10 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { useState } from 'react'
+//import { useState } from 'react'
 
 export default function SignIn() {
-  const [email, setEmail] = useState('')
+  //const [email, setEmail] = useState('')
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
