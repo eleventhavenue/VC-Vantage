@@ -1,24 +1,24 @@
 // components/ui/Avatar.tsx
-
-import React from 'react'
+import React from 'react';
+import Image from 'next/image';
 
 interface AvatarProps {
-  children: React.ReactNode
-  className?: string
+  src: string;
+  alt: string;
+  width?: number;
+  height?: number;
 }
 
-export const Avatar: React.FC<AvatarProps> = ({ children, className }) => (
-  <div className={`flex-shrink-0 ${className}`}>
-    {children}
-  </div>
-)
+const Avatar: React.FC<AvatarProps> = ({ src, alt, width = 50, height = 50 }) => {
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      className="rounded-full"
+    />
+  );
+};
 
-export const AvatarImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => (
-  <img src={src} alt={alt} className="h-10 w-10 rounded-full object-cover" />
-)
-
-export const AvatarFallback: React.FC<{ children: string }> = ({ children }) => (
-  <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-medium">
-    {children}
-  </div>
-)
+export default Avatar;
