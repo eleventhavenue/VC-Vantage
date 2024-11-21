@@ -2,11 +2,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-// Import environment variables
+// Retrieve environment variables
 const username = process.env.BASIC_AUTH_USERNAME;
 const password = process.env.BASIC_AUTH_PASSWORD;
 
-// Encode the username and password in Base64
+// Ensure that username and password are defined
+if (!username || !password) {
+  throw new Error('Missing BASIC_AUTH_USERNAME or BASIC_AUTH_PASSWORD environment variables');
+}
+
+// Encode the credentials in Base64
 const basicAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
 
 export function middleware(req: NextRequest) {
@@ -14,7 +19,12 @@ export function middleware(req: NextRequest) {
 
   // Allow requests to the API routes and static files without authentication
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/favicon.ico')) {
+  if (
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/static')
+  ) {
     return NextResponse.next();
   }
 
@@ -35,5 +45,5 @@ export function middleware(req: NextRequest) {
 
 // Specify the paths where the middleware should run
 export const config = {
-  matcher: ['/((?!api|_next|favicon.ico).*)'],
+  matcher: ['/((?!api|_next|favicon.ico|static).*)'],
 };
