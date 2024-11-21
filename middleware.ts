@@ -1,34 +1,39 @@
-//middleware.ts
-import { getToken } from "next-auth/jwt"
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+// middleware.ts
 
-const secret = process.env.NEXTAUTH_SECRET
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret })
-  const { pathname } = req.nextUrl
+// Import environment variables
+const username = process.env.BASIC_AUTH_USERNAME;
+const password = process.env.BASIC_AUTH_PASSWORD;
 
-  // Allow requests to NextAuth.js, public pages, and static files
-  if (
-    pathname.includes("/api/auth") ||
-    pathname.includes("/static") ||
-    pathname === "/auth"
-  ) {
-    return NextResponse.next()
+// Encode the username and password in Base64
+const basicAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+
+export function middleware(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+
+  // Allow requests to the API routes and static files without authentication
+  const { pathname } = req.nextUrl;
+  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/favicon.ico')) {
+    return NextResponse.next();
   }
 
-  // Redirect to /auth if not authenticated
-  if (!token) {
-    const url = req.nextUrl.clone()
-    url.pathname = "/auth"
-    return NextResponse.redirect(url)
+  // If the Authorization header matches the stored credentials, proceed
+  if (authHeader === basicAuth) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next()
+  // Otherwise, return a 401 response prompting for credentials
+  const response = new NextResponse('Authentication required', {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': 'Basic realm="Secure Area"',
+    },
+  });
+  return response;
 }
 
-// Specify the paths you want to protect
+// Specify the paths where the middleware should run
 export const config = {
-  matcher: ["/search/:path*", "/dashboard/:path*"],
-}
+  matcher: ['/((?!api|_next|favicon.ico).*)'],
+};
