@@ -1,19 +1,9 @@
 // app/reports/page.tsx
 
-'use client';
-
+// Remove the 'use client' directive
 import React, { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import ReportsClientComponent from './ReportsClientComponent';
 import Spinner from '@/components/ui/Spinner';
-
-const ReportsContent = dynamic(() => import('./ReportsContent'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-screen">
-      <Spinner />
-    </div>
-  ),
-});
 
 export default function ReportsPage() {
   return (
@@ -22,7 +12,7 @@ export default function ReportsPage() {
         <Spinner />
       </div>
     }>
-      <ReportsContent />
+      <ReportsClientComponent />
     </Suspense>
   );
 }

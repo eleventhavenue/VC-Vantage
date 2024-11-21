@@ -1,49 +1,40 @@
-// app/reports/ReportsContent.tsx
+// app/results/page.tsx
 
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import Spinner from '@/components/ui/Spinner';
-import { Accordion, AccordionItem } from '@/components/ui/Accordion';
-
-import UserDropdown from '@/components/UserDropdown';
-import { FileText, MountainIcon, Search, Settings } from 'lucide-react';
-import { useSession, signIn } from 'next-auth/react';
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import Spinner from '@/components/ui/Spinner'
+import { Accordion, AccordionItem } from '@/components/ui/Accordion'
+import Image from 'next/image'
+import UserDropdown from '@/components/UserDropdown'
+import { FileText, MountainIcon, Search, Settings } from 'lucide-react'
 
 interface SearchResults {
-  overview: string;
-  marketAnalysis: string;
-  financialAnalysis: string;
-  strategicAnalysis: string;
-  summary: string;
-  keyQuestions: string[];
+  overview: string
+  marketAnalysis: string
+  financialAnalysis: string
+  strategicAnalysis: string
+  summary: string
+  keyQuestions: string[]
 }
 
-export default function ReportsContent() {
-  const { data: session, status } = useSession();
-  const [results, setResults] = useState<SearchResults | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  const query = searchParams.get('query') || '';
-  const type = searchParams.get('type') as 'people' | 'company' | undefined;
+export default function ResultsPage() {
+  const [results, setResults] = useState<SearchResults | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const query = searchParams.get('query') || ''
+  const type = searchParams.get('type') as 'people' | 'company' | undefined
 
   useEffect(() => {
-    // Redirect to sign-in if not authenticated
-    if (status === 'loading') return;
-    if (!session) {
-      signIn();
-      return;
-    }
-
     const fetchResults = async () => {
       if (!query || !type) {
-        setError('Invalid search parameters.');
-        setIsLoading(false);
-        return;
+        setError('Invalid search parameters.')
+        setIsLoading(false)
+        return
       }
       try {
         const response = await fetch('/api/search', {
@@ -52,35 +43,23 @@ export default function ReportsContent() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ query, type }),
-        });
-        const data = await response.json();
+        })
+        const data = await response.json()
         if (!response.ok) {
-          setError(data.error || 'An error occurred while fetching results.');
+          setError(data.error || 'An error occurred while fetching results.')
         } else {
-          setResults(data);
+          setResults(data)
         }
       } catch (error) {
-        console.error('Error fetching results:', error);
-        setError('Failed to fetch results. Please try again later.');
+        console.error('Error fetching results:', error)
+        setError('Failed to fetch results. Please try again later.')
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    fetchResults();
-  }, [query, type, session, status]);
-
-  if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (!session) {
-    return null; // Prevent flash of unauthenticated content
-  }
+    fetchResults()
+  }, [query, type])
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -95,14 +74,14 @@ export default function ReportsContent() {
         <nav className="mt-6">
           <Link
             href="/search"
-            className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100"
+            className="flex items-center px-4 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
           >
             <Search className="h-5 w-5 mr-3" />
             Search
           </Link>
           <Link
             href="/reports"
-            className="flex items-center px-4 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100"
+            className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100"
           >
             <FileText className="h-5 w-5 mr-3" />
             Reports
@@ -122,7 +101,7 @@ export default function ReportsContent() {
         {/* Header */}
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900">Reports</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Search Results</h1>
             <div className="flex items-center space-x-4">
               <UserDropdown />
             </div>
@@ -166,8 +145,7 @@ export default function ReportsContent() {
                 {/* Header with Branding */}
                 <header className="flex items-center justify-between mb-8">
                   <div className="flex items-center">
-                    {/* Replace '/logo.png' with your actual logo path */}
-
+                    <Image src="/logo.png" alt="Brand Logo" width={50} height={50} />
                     <h1 className="text-3xl font-bold ml-4 text-blue-600">Who Is...</h1>
                     <span className="text-3xl font-bold ml-2 text-gray-800">{query}</span>
                   </div>
@@ -231,5 +209,5 @@ export default function ReportsContent() {
         </div>
       </main>
     </div>
-  );
+  )
 }
