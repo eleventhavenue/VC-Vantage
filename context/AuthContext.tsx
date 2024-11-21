@@ -1,8 +1,10 @@
 // context/AuthContext.tsx
 
+'use client'
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import jwtDecode from 'jwt-decode' // This should now work without errors
+import { decodeJwt, JWTPayload } from 'jose'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -28,30 +30,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem('token')
     if (token) {
       try {
-        const decoded: User = jwtDecode(token)
-        if (decoded.exp * 1000 > Date.now()) {
-          setIsAuthenticated(true)
-          setUser(decoded)
+        const decoded: JWTPayload = decodeJwt(token)
+        
+        // Validate 'exp' and 'sub' claims
+        if (typeof decoded.exp === 'number' && typeof decoded.sub === 'string') {
+          if (decoded.exp * 1000 > Date.now()) {
+            const userId = parseInt(decoded.sub, 10)
+            if (!isNaN(userId)) {
+              setIsAuthenticated(true)
+              setUser({
+                userId,
+                email: decoded.email as string,
+                exp: decoded.exp,
+              })
+            } else {
+              // Invalid userId
+              console.error('Invalid user ID in token')
+              handleInvalidToken()
+            }
+          } else {
+            // Token expired
+            handleInvalidToken()
+          }
         } else {
-          // Token expired
-          localStorage.removeItem('token')
-          setIsAuthenticated(false)
-          setUser(null)
+          // Missing required claims
+          console.error('Token is missing required claims')
+          handleInvalidToken()
         }
       } catch (error) {
         console.error('Token decode error:', error)
-        localStorage.removeItem('token')
-        setIsAuthenticated(false)
-        setUser(null)
+        handleInvalidToken()
       }
     }
   }, [])
 
   const login = (token: string) => {
     localStorage.setItem('token', token)
-    const decoded: User = jwtDecode(token)
-    setIsAuthenticated(true)
-    setUser(decoded)
+    try {
+      const decoded: JWTPayload = decodeJwt(token)
+      
+      // Validate 'exp' and 'sub' claims
+      if (typeof decoded.exp === 'number' && typeof decoded.sub === 'string') {
+        if (decoded.exp * 1000 > Date.now()) {
+          const userId = parseInt(decoded.sub, 10)
+          if (!isNaN(userId)) {
+            setIsAuthenticated(true)
+            setUser({
+              userId,
+              email: decoded.email as string,
+              exp: decoded.exp,
+            })
+          } else {
+            // Invalid userId
+            console.error('Invalid user ID in token')
+            handleInvalidToken()
+          }
+        } else {
+          // Token expired
+          handleInvalidToken()
+        }
+      } else {
+        // Missing required claims
+        console.error('Token is missing required claims')
+        handleInvalidToken()
+      }
+    } catch (error) {
+      console.error('Token decode error:', error)
+      handleInvalidToken()
+    }
   }
 
   const logout = () => {
@@ -59,6 +105,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthenticated(false)
     setUser(null)
     router.push('/auth') // Redirect to login page
+  }
+
+  const handleInvalidToken = () => {
+    localStorage.removeItem('token')
+    setIsAuthenticated(false)
+    setUser(null)
+    router.push('/auth') // Redirect to login page or show an error message
   }
 
   return (
