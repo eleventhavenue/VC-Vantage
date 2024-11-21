@@ -6,9 +6,9 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import Spinner from '@/components/ui/Spinner' // Ensure this component exists
-import Section from '@/components/ui/Section' // New Section component
-//import { IconButton } from '@/components/ui/icon-button' // Optional: For theme toggling or other actions
+import Spinner from '@/components/ui/Spinner'
+import { Accordion, AccordionItem } from '@/components/ui/Accordion'
+import Image from 'next/image'
 
 interface SearchResults {
   overview: string
@@ -16,6 +16,7 @@ interface SearchResults {
   financialAnalysis: string
   strategicAnalysis: string
   summary: string
+  keyQuestions: string[]
 }
 
 export default function Results() {
@@ -59,10 +60,10 @@ export default function Results() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-100 to-purple-100">
         <div className="flex flex-col items-center">
-          <Spinner className="w-12 h-12 text-blue-500 mb-4" />
-          <p className="text-lg text-gray-700">Fetching detailed analysis, please wait...</p>
+          <Spinner className="w-16 h-16 text-blue-500 mb-4" />
+          <p className="text-xl text-gray-700">Fetching detailed analysis, please wait...</p>
         </div>
       </div>
     )
@@ -70,10 +71,10 @@ export default function Results() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
-        <p className="text-red-500 text-lg mb-4">{error}</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-r from-red-100 to-yellow-100 px-4">
+        <p className="text-red-600 text-xl mb-4">{error}</p>
         <Link href="/">
-          <Button className="mt-2">Back to Search</Button>
+          <Button className="mt-2 px-6 py-3">Back to Search</Button>
         </Link>
       </div>
     )
@@ -81,32 +82,79 @@ export default function Results() {
 
   if (!results) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
-        <p className="text-gray-700 text-lg mb-4">No results found.</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-r from-gray-100 to-gray-200 px-4">
+        <p className="text-gray-700 text-xl mb-4">No results found.</p>
         <Link href="/">
-          <Button className="mt-2">Back to Search</Button>
+          <Button className="mt-2 px-6 py-3">Back to Search</Button>
         </Link>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-8">Results for: <span className="text-blue-600">{query}</span></h1>
-      
-      <div className="space-y-8">
-        <Section title="Overview" content={results.overview} />
-        <Section title="Market Analysis" content={results.marketAnalysis} />
-        <Section title="Financial Analysis" content={results.financialAnalysis} />
-        <Section title="Strategic Analysis" content={results.strategicAnalysis} />
-        <Section title="Summary and Key Questions" content={results.summary} />
-      </div>
-
-      <div className="mt-8 text-center">
+    <div className="container mx-auto px-4 py-8 bg-white min-h-screen">
+      {/* Header with Branding */}
+      <header className="flex items-center justify-between mb-8">
+        <div className="flex items-center">
+          {/* Replace '/logo.png' with your actual logo path */}
+          <Image src="/logo.png" alt="Brand Logo" width={50} height={50} />
+          <h1 className="text-3xl font-bold ml-4 text-blue-600">Who Is...</h1>
+          <span className="text-3xl font-bold ml-2 text-gray-800">{query}</span>
+        </div>
         <Link href="/">
           <Button className="px-6 py-3">Back to Search</Button>
         </Link>
-      </div>
+      </header>
+
+      {/* Accordion for Sections */}
+      <Accordion className="space-y-4">
+        {/* Overview Section */}
+        <AccordionItem title="Overview">
+          <div className="prose prose-lg max-w-none">
+            {results.overview}
+          </div>
+        </AccordionItem>
+
+        {/* Market Analysis Section */}
+        <AccordionItem title="Market Analysis">
+          <div className="prose prose-lg max-w-none">
+            {results.marketAnalysis}
+          </div>
+        </AccordionItem>
+
+        {/* Financial Analysis Section */}
+        <AccordionItem title="Financial Analysis">
+          <div className="prose prose-lg max-w-none">
+            {results.financialAnalysis}
+          </div>
+        </AccordionItem>
+
+        {/* Strategic Analysis Section */}
+        <AccordionItem title="Strategic Analysis">
+          <div className="prose prose-lg max-w-none">
+            {results.strategicAnalysis}
+          </div>
+        </AccordionItem>
+
+        {/* Summary and Key Questions Section */}
+        <AccordionItem title="Summary and Key Questions">
+          <div className="prose prose-lg max-w-none">
+            {results.summary}
+          </div>
+          {results.keyQuestions.length > 0 && (
+            <div className="mt-4">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Key Questions</h2>
+              <ul className="list-disc list-inside space-y-2">
+                {results.keyQuestions.map((question, index) => (
+                  <li key={index} className="text-gray-700">
+                    {question}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }

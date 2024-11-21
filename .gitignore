@@ -43,4 +43,6 @@ CRUNCHBASE_API_KEY=your-crunchbase-api-key
 SITE_PASSWORD=FXeDkYyz3FEq
 COOKIE_SECRET=5060f2f78bc2d202504cfcd72ddd4ef21d7b07835a4c55acb7531a2be0096f493ee11b1b0d37aa66c23d919fa01e45fbb930d3ffb88f54f7df20e4193ca9d0d0
 
+# .gitignore
+.env
 
