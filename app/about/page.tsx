@@ -43,7 +43,7 @@ export default function AboutPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-500">
-                    We're a diverse group of technologists, data scientists, and VC experts committed to transforming the investment landscape.
+                    We are a diverse group of technologists, data scientists, and VC experts committed to transforming the investment landscape.
                   </p>
                 </CardContent>
               </Card>

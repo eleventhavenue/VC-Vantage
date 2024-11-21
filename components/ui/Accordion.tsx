@@ -1,5 +1,7 @@
 // components/ui/Accordion.tsx
 
+'use client'
+
 import React, { FC } from 'react'
 import { Disclosure } from '@headlessui/react'
 import { ChevronUpIcon } from '@heroicons/react/20/solid'

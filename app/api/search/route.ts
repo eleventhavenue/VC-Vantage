@@ -93,22 +93,32 @@ async function fetchFromOpenAI(prompt: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { query } = await req.json();
+    const { query, type } = await req.json();
 
-    if (!query || query.trim() === '') {
-      return NextResponse.json({ error: 'Query parameter is required.' }, { status: 400 });
+    if (!query || query.trim() === '' || !type) {
+      return NextResponse.json({ error: 'Query and type parameters are required.' }, { status: 400 });
     }
 
     const sanitizedQuery = query.trim();
 
-    // Check cache
-    if (cache.has(sanitizedQuery)) {
-      console.log('Cache hit for query:', sanitizedQuery);
-      return NextResponse.json(cache.get(sanitizedQuery));
+    // Validate type
+    if (type !== 'people' && type !== 'company') {
+      return NextResponse.json({ error: 'Type must be either "people" or "company".' }, { status: 400 });
     }
 
-    // Define prompts
-    const overviewPrompt = `# Results for: ${sanitizedQuery}
+    // Check cache
+    if (cache.has(sanitizedQuery)) {
+      console.log('Cache hit for query:', sanitizedQuery)
+      return NextResponse.json(cache.get(sanitizedQuery))
+    }
+
+    // Define prompts based on type
+    let overviewPrompt = ''
+    let marketAnalysisPrompt = ''
+    let financialAnalysisPrompt = ''
+
+    if (type === 'people') {
+      overviewPrompt = `# Results for: ${sanitizedQuery}
 
 ## Overview
 
@@ -129,9 +139,9 @@ Summarize the latest activities and developments involving ${sanitizedQuery}, in
 
 ### Mission and Support
 Explain the mission of ${sanitizedQuery} and the support services they offer to their portfolio companies beyond capital investment.
-`;
+`
 
-    const marketAnalysisPrompt = `## Market Analysis
+      marketAnalysisPrompt = `## Market Analysis
 
 ### Market and Competitive Landscape
 Provide an analysis of the market and competitive landscape in which ${sanitizedQuery} operates.
@@ -147,9 +157,9 @@ Analyze how the leadership team of ${sanitizedQuery} influences its market posit
 
 ### Potential Threats and Opportunities
 Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.
-`;
+`
 
-    const financialAnalysisPrompt = `## Financial Analysis
+      financialAnalysisPrompt = `## Financial Analysis
 
 ### Funding History
 Detail the funding history of ${sanitizedQuery}, including previous funds raised and key investors.
@@ -174,7 +184,78 @@ Discuss how current market trends present opportunities or challenges for ${sani
 
 ### Financial Health Indicators
 Summarize key financial health indicators for ${sanitizedQuery}.
-`;
+`
+    } else if (type === 'company') {
+      // Define prompts for 'company' type similarly
+      // For brevity, let's assume they are similar but tailored to companies
+      overviewPrompt = `# Results for: ${sanitizedQuery}
+
+## Overview
+
+### Industry and Focus
+Provide a detailed description of ${sanitizedQuery}'s industry focus, including the sectors they operate in and their strategic approach.
+
+### Market Position
+Analyze ${sanitizedQuery}'s position in the market, highlighting their unique value propositions and how they differentiate themselves from competitors.
+
+### Founding and Team
+List the founding year, location, and key team members of ${sanitizedQuery}. Include brief professional backgrounds and their roles within the company.
+
+### Key Milestones
+Detail significant milestones achieved by ${sanitizedQuery}, such as product launches, market expansions, and partnerships.
+
+### Recent Developments
+Summarize the latest activities and developments involving ${sanitizedQuery}, including new products and strategic initiatives.
+
+### Mission and Support
+Explain the mission of ${sanitizedQuery} and the support services they offer to their customers beyond their core products.
+`
+
+      marketAnalysisPrompt = `## Market Analysis
+
+### Market and Competitive Landscape
+Provide an analysis of the market and competitive landscape in which ${sanitizedQuery} operates.
+
+### Key Competitors
+Identify and describe the key competitors of ${sanitizedQuery}.
+
+### Emerging Market Trends
+Discuss the emerging market trends relevant to ${sanitizedQuery}'s focus areas.
+
+### Leadership Influence
+Analyze how the leadership team of ${sanitizedQuery} influences its market position.
+
+### Potential Threats and Opportunities
+Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.
+`
+
+      financialAnalysisPrompt = `## Financial Analysis
+
+### Funding History
+Detail the funding history of ${sanitizedQuery}, including previous funding rounds and key investors.
+
+### Investment Strategy and Funding Rounds
+Describe ${sanitizedQuery}'s investment strategy and the typical funding rounds they participate in.
+
+### Revenue Streams
+Explain the revenue streams of ${sanitizedQuery}, if applicable.
+
+### Profitability
+Assess the profitability of ${sanitizedQuery}, including key financial metrics.
+
+### Recent Funding Rounds and Investor Profiles
+Provide information on recent funding rounds and the profiles of new investors.
+
+### Financial Challenges and Risks
+Identify any financial challenges and risks faced by ${sanitizedQuery}.
+
+### Market Trends and Opportunities
+Discuss how current market trends present opportunities or challenges for ${sanitizedQuery}.
+
+### Financial Health Indicators
+Summarize key financial health indicators for ${sanitizedQuery}.
+`
+    }
 
     // Fetch data concurrently
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
@@ -202,7 +283,7 @@ Identify opportunities for ${sanitizedQuery} to expand into new markets or secto
 
 #### Resilience against Competitive Pressures
 Analyze how ${sanitizedQuery} can maintain resilience against competitive pressures.
-`;
+`
 
     const strategicAnalysis = await fetchFromOpenAI(strategicAnalysisPrompt);
 
@@ -210,7 +291,7 @@ Analyze how ${sanitizedQuery} can maintain resilience against competitive pressu
     const summaryPrompt = `Please provide a **Summary** of the strategic analysis of **${sanitizedQuery}**. Additionally, generate **five critical questions** that venture capitalists should consider when evaluating this company for investment. Focus on identifying potential risks, uncovering opportunities, and areas requiring further due diligence.
 
 Format the response using Markdown with headings and bullet points.
-`;
+`
 
     const summaryResponse = await fetchFromOpenAI(summaryPrompt);
 

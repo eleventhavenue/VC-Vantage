@@ -7,7 +7,7 @@ import { useEffect } from "react"
 import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+
 
 export default function ProfilePage() {
   const { data: session, status } = useSession()

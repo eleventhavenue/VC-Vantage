@@ -35,7 +35,7 @@ export default function ContactPage() {
               Contact Us
             </h1>
             <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl/relaxed text-center mb-12">
-              Have questions or need assistance? We're here to help. Reach out to our team using the form below or through our contact information.
+              Have questions or need assistance? We are here to help. Reach out to our team using the form below or through our contact information.
             </p>
             <div className="grid gap-10 lg:grid-cols-2">
               <Card>
@@ -64,7 +64,7 @@ export default function ContactPage() {
                 <CardHeader>
                   <CardTitle>Contact Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent >
                   <div className="flex items-center">
                     <Mail className="h-5 w-5 text-blue-500 mr-2" />
                     <p>support@vcvantage.com</p>

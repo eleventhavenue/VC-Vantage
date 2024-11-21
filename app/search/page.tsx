@@ -12,13 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MountainIcon, Search, FileText, Settings, Building2, UserSearch } from 'lucide-react'
 import UserDropdown from "@/components/UserDropdown"
 
-
 export default function SearchPage() {
   const [peopleQuery, setPeopleQuery] = useState('')
   const [companyQuery, setCompanyQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-
 
   const handleSearch = async (e: React.FormEvent, type: 'people' | 'company') => {
     e.preventDefault()
@@ -30,7 +28,7 @@ export default function SearchPage() {
     }
     setIsLoading(true)
     try {
-      await router.push(`/results?query=${encodeURIComponent(query)}&type=${type}`)
+      await router.push(`/reports?query=${encodeURIComponent(query)}&type=${type}`)
     } catch (error) {
       console.error('Error performing search:', error)
       alert('An error occurred while performing the search. Please try again.')
@@ -50,8 +48,7 @@ export default function SearchPage() {
           </Link>
         </div>
         <nav className="mt-6">
-          
-          <Link href="/search" className="flex items-center px-4 py-2 text-blue-600 bg-blue-50">
+          <Link href="/search" className="flex items-center px-4 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100">
             <Search className="h-5 w-5 mr-3" />
             Search
           </Link>
@@ -72,8 +69,7 @@ export default function SearchPage() {
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
             <h1 className="text-2xl font-semibold text-gray-900">Search</h1>
             <div className="flex items-center space-x-4">
-            
-              <UserDropdown /> {/* Replaced existing dropdown with UserDropdown */}
+              <UserDropdown />
             </div>
           </div>
         </header>
