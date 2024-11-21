@@ -1,13 +1,12 @@
 // lib/auth.ts
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
-export async function hashPassword(password: string) {
-  const hashedPassword = await bcrypt.hash(password, 12);
-  return hashedPassword;
+export async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(12);
+  return await bcrypt.hash(password, salt);
 }
 
-export async function verifyPassword(password: string, hashedPassword: string) {
-  const isValid = await bcrypt.compare(password, hashedPassword);
-  return isValid;
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  return await bcrypt.compare(password, hashedPassword);
 }
