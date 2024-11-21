@@ -13,11 +13,10 @@ const basicAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('ba
 
 export function middleware(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-
   const { pathname } = req.nextUrl;
 
   // Allow access to NextAuth.js API routes
-  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/static')) {
+  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/auth/register')) {
     return NextResponse.next();
   }
 
@@ -47,5 +46,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api/auth|api/static|api/_next|api/favicon.ico|api/static|_next|favicon.ico|static).*)'],
+  matcher: ['/((?!api/auth|api/auth/register|api/_next|api/favicon.ico|api/static|_next|favicon.ico|static).*)'],
 };
