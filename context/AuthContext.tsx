@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import jwtDecode from 'jwt-decode'
+import jwtDecode from 'jwt-decode' // This should now work without errors
 
 interface AuthContextType {
   isAuthenticated: boolean
