@@ -100,7 +100,7 @@ const handler = NextAuth({
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET, // <-- Add this line
+  secret: process.env.NEXTAUTH_SECRET, // <-- Ensure this line exists
   debug: process.env.NODE_ENV === "development",
 });
 
