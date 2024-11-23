@@ -30,15 +30,10 @@ export default function ReportsClientComponent() {
 
   // Use useSearchParams to access query parameters
   const searchParams = useSearchParams();
-  const queryParam = searchParams.get('query');
-  const typeParam = searchParams.get('type');
-
-  const query = queryParam || '';
-  const type = typeParam === 'people' || typeParam === 'company' ? typeParam : undefined;
+  const searchId = searchParams.get('searchId');
 
   useEffect(() => {
-    console.log('Query:', query);
-    console.log('Type:', type);
+    console.log('Search ID:', searchId);
 
     // Redirect to sign-in if not authenticated
     if (status === 'loading') return;
@@ -48,24 +43,27 @@ export default function ReportsClientComponent() {
     }
 
     const fetchResults = async () => {
-      if (!query || !type) {
-        setError('Invalid search parameters.');
+      if (!searchId) {
+        setError('Search ID is missing.');
         setIsLoading(false);
         return;
       }
       try {
-        const response = await fetch('/api/search', {
-          method: 'POST',
+        const response = await fetch(`/api/search/${searchId}`, {
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ query, type }),
         });
+
         const data = await response.json();
+
         if (!response.ok) {
           setError(data.error || 'An error occurred while fetching results.');
-        } else {
-          setResults(data);
+        } else if (data.status === 'complete') {
+          setResults(data.results);
+        } else if (data.status === 'error') {
+          setError(data.error || 'An error occurred during the search.');
         }
       } catch (error) {
         console.error('Error fetching results:', error);
@@ -76,7 +74,7 @@ export default function ReportsClientComponent() {
     };
 
     fetchResults();
-  }, [query, type, session, status]);
+  }, [searchId, session, status]);
 
   if (status === 'loading') {
     return (
@@ -158,26 +156,14 @@ export default function ReportsClientComponent() {
               </div>
             )}
 
-            {/* No Results State */}
-            {!isLoading && !error && !results && (
-              <div className="flex flex-col items-center justify-center h-full bg-gray-200 rounded-lg shadow p-8">
-                <p className="text-gray-700 text-xl mb-4">No results found.</p>
-                <Link href="/search">
-                  <Button className="mt-2 px-6 py-3">Back to Search</Button>
-                </Link>
-              </div>
-            )}
-
             {/* Display Results */}
             {results && (
               <div className="space-y-8">
                 {/* Header with Branding */}
                 <header className="flex items-center justify-between mb-8">
                   <div className="flex items-center">
-                    {/* Replace '/logo.png' with your actual logo path */}
-
                     <h1 className="text-3xl font-bold ml-4 text-blue-600">Who Is...</h1>
-                    <span className="text-3xl font-bold ml-2 text-gray-800">{query}</span>
+                    <span className="text-3xl font-bold ml-2 text-gray-800">{searchId}</span>
                   </div>
                   <Link href="/search">
                     <Button className="px-6 py-3">Back to Search</Button>

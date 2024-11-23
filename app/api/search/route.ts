@@ -94,7 +94,6 @@ async function fetchFromOpenAI(prompt: string): Promise<string> {
 export async function POST(req: Request) {
   try {
     const { query, type } = await req.json();
-    console.log(`Received search request for query: "${query}", type: "${type}"`);
 
     if (!query || query.trim() === '' || !type) {
       return NextResponse.json({ error: 'Query and type parameters are required.' }, { status: 400 });
@@ -286,9 +285,7 @@ Identify opportunities for ${sanitizedQuery} to expand into new markets or secto
 Analyze how ${sanitizedQuery} can maintain resilience against competitive pressures.
 `
 
-    console.log('Fetching strategic analysis from OpenAI');
     const strategicAnalysis = await fetchFromOpenAI(strategicAnalysisPrompt);
-    console.log('Fetched strategic analysis successfully');
 
     // Summary and Key Questions via OpenAI
     const summaryPrompt = `Please provide a **Summary** of the strategic analysis of **${sanitizedQuery}**. Additionally, generate **five critical questions** that venture capitalists should consider when evaluating this company for investment. Focus on identifying potential risks, uncovering opportunities, and areas requiring further due diligence.

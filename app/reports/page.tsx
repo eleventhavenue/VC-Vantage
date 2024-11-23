@@ -1,3 +1,5 @@
+// app/reports/page.tsx
+
 export const dynamic = 'force-dynamic';
 
 import React, { Suspense } from 'react';
