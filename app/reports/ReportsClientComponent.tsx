@@ -61,6 +61,15 @@ export default function ReportsClientComponent() {
           },
           body: JSON.stringify({ query, type }),
         });
+
+        // Check if response is OK and content-type is JSON
+  const contentType = response.headers.get('content-type');
+  if (!response.ok || !contentType?.includes('application/json')) {
+    const text = await response.text();
+    throw new Error(
+      `Server error: ${response.status} ${response.statusText} - ${text}`
+    );
+  }
         const data = await response.json();
         if (!response.ok) {
           setError(data.error || 'An error occurred while fetching results.');
