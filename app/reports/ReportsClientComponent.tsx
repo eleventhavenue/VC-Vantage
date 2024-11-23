@@ -3,7 +3,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
+import { useSearchParams } from 'next/navigation'; // Correct hook for query parameters
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Spinner from '@/components/ui/Spinner';
@@ -26,17 +27,19 @@ export default function ReportsClientComponent() {
   const [results, setResults] = useState<SearchResults | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
-  const queryParam = router.query.query;
-  const typeParam = router.query.type;
+  // Use useSearchParams to access query parameters
+  const searchParams = useSearchParams();
+  const queryParam = searchParams.get('query');
+  const typeParam = searchParams.get('type');
 
-  const query = typeof queryParam === 'string' ? queryParam : '';
-  const type = typeof typeParam === 'string' ? (typeParam as 'people' | 'company') : undefined;
+  const query = queryParam || '';
+  const type = typeParam === 'people' || typeParam === 'company' ? typeParam : undefined;
 
   useEffect(() => {
     console.log('Query:', query);
-  console.log('Type:', type);
+    console.log('Type:', type);
+
     // Redirect to sign-in if not authenticated
     if (status === 'loading') return;
     if (!session) {
