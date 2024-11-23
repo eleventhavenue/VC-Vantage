@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Spinner from '@/components/ui/Spinner';
@@ -26,11 +26,17 @@ export default function ReportsClientComponent() {
   const [results, setResults] = useState<SearchResults | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  const query = searchParams.get('query') || '';
-  const type = searchParams.get('type') as 'people' | 'company' | undefined;
+  const router = useRouter();
+
+  const queryParam = router.query.query;
+  const typeParam = router.query.type;
+
+  const query = typeof queryParam === 'string' ? queryParam : '';
+  const type = typeof typeParam === 'string' ? (typeParam as 'people' | 'company') : undefined;
 
   useEffect(() => {
+    console.log('Query:', query);
+  console.log('Type:', type);
     // Redirect to sign-in if not authenticated
     if (status === 'loading') return;
     if (!session) {
@@ -52,18 +58,11 @@ export default function ReportsClientComponent() {
           },
           body: JSON.stringify({ query, type }),
         });
-    
-        const contentType = response.headers.get('Content-Type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          if (!response.ok) {
-            setError(data.error || 'An error occurred while fetching results.');
-          } else {
-            setResults(data);
-          }
+        const data = await response.json();
+        if (!response.ok) {
+          setError(data.error || 'An error occurred while fetching results.');
         } else {
-          const text = await response.text();
-          setError(`Unexpected response format: ${text}`);
+          setResults(data);
         }
       } catch (error) {
         console.error('Error fetching results:', error);
@@ -72,7 +71,6 @@ export default function ReportsClientComponent() {
         setIsLoading(false);
       }
     };
-    
 
     fetchResults();
   }, [query, type, session, status]);
