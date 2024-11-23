@@ -52,11 +52,18 @@ export default function ReportsClientComponent() {
           },
           body: JSON.stringify({ query, type }),
         });
-        const data = await response.json();
-        if (!response.ok) {
-          setError(data.error || 'An error occurred while fetching results.');
+    
+        const contentType = response.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          if (!response.ok) {
+            setError(data.error || 'An error occurred while fetching results.');
+          } else {
+            setResults(data);
+          }
         } else {
-          setResults(data);
+          const text = await response.text();
+          setError(`Unexpected response format: ${text}`);
         }
       } catch (error) {
         console.error('Error fetching results:', error);
@@ -65,6 +72,7 @@ export default function ReportsClientComponent() {
         setIsLoading(false);
       }
     };
+    
 
     fetchResults();
   }, [query, type, session, status]);

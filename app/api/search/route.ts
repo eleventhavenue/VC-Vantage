@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import LRU from 'lru-cache';
 
-// Initialize OpenAI
+// Initialize OpenAI with the correct model
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
@@ -24,7 +24,7 @@ interface AnalysisResults {
   keyQuestions: string[];
 }
 
-// Define fetchFromPerplexity function
+// Define fetchFromPerplexity function with corrected model name
 async function fetchFromPerplexity(prompt: string): Promise<string> {
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
@@ -33,7 +33,7 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'llama-3.1-sonar-large-128k-online',
+      model: 'llama-3.1-sonar-large-128k', // <-- Corrected model name
       messages: [
         {
           role: 'user',
@@ -63,10 +63,10 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   return data.choices[0].message.content.trim();
 }
 
-// Define fetchFromOpenAI function
+// Define fetchFromOpenAI function with corrected model name
 async function fetchFromOpenAI(prompt: string): Promise<string> {
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-4o', // <-- Corrected model name
     messages: [
       {
         role: 'user',
@@ -95,7 +95,10 @@ export async function POST(req: Request) {
   try {
     const { query, type } = await req.json();
 
+    console.log(`Received search request for query: "${query}", type: "${type}"`);
+
     if (!query || query.trim() === '' || !type) {
+      console.log('Invalid search parameters.');
       return NextResponse.json({ error: 'Query and type parameters are required.' }, { status: 400 });
     }
 
@@ -103,19 +106,20 @@ export async function POST(req: Request) {
 
     // Validate type
     if (type !== 'people' && type !== 'company') {
+      console.log(`Invalid type parameter: "${type}"`);
       return NextResponse.json({ error: 'Type must be either "people" or "company".' }, { status: 400 });
     }
 
     // Check cache
     if (cache.has(sanitizedQuery)) {
-      console.log('Cache hit for query:', sanitizedQuery)
-      return NextResponse.json(cache.get(sanitizedQuery))
+      console.log('Cache hit for query:', sanitizedQuery);
+      return NextResponse.json(cache.get(sanitizedQuery));
     }
 
     // Define prompts based on type
-    let overviewPrompt = ''
-    let marketAnalysisPrompt = ''
-    let financialAnalysisPrompt = ''
+    let overviewPrompt = '';
+    let marketAnalysisPrompt = '';
+    let financialAnalysisPrompt = '';
 
     if (type === 'people') {
       overviewPrompt = `# Results for: ${sanitizedQuery}
@@ -139,7 +143,7 @@ Summarize the latest activities and developments involving ${sanitizedQuery}, in
 
 ### Mission and Support
 Explain the mission of ${sanitizedQuery} and the support services they offer to their portfolio companies beyond capital investment.
-`
+`;
 
       marketAnalysisPrompt = `## Market Analysis
 
@@ -157,7 +161,7 @@ Analyze how the leadership team of ${sanitizedQuery} influences its market posit
 
 ### Potential Threats and Opportunities
 Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.
-`
+`;
 
       financialAnalysisPrompt = `## Financial Analysis
 
@@ -184,10 +188,9 @@ Discuss how current market trends present opportunities or challenges for ${sani
 
 ### Financial Health Indicators
 Summarize key financial health indicators for ${sanitizedQuery}.
-`
+`;
     } else if (type === 'company') {
       // Define prompts for 'company' type similarly
-      // For brevity, let's assume they are similar but tailored to companies
       overviewPrompt = `# Results for: ${sanitizedQuery}
 
 ## Overview
@@ -209,7 +212,7 @@ Summarize the latest activities and developments involving ${sanitizedQuery}, in
 
 ### Mission and Support
 Explain the mission of ${sanitizedQuery} and the support services they offer to their customers beyond their core products.
-`
+`;
 
       marketAnalysisPrompt = `## Market Analysis
 
@@ -227,7 +230,7 @@ Analyze how the leadership team of ${sanitizedQuery} influences its market posit
 
 ### Potential Threats and Opportunities
 Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.
-`
+`;
 
       financialAnalysisPrompt = `## Financial Analysis
 
@@ -254,15 +257,17 @@ Discuss how current market trends present opportunities or challenges for ${sani
 
 ### Financial Health Indicators
 Summarize key financial health indicators for ${sanitizedQuery}.
-`
+`;
     }
 
+    console.log('Fetching overview, market analysis, and financial analysis from Perplexity.');
     // Fetch data concurrently
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
       fetchFromPerplexity(overviewPrompt),
       fetchFromPerplexity(marketAnalysisPrompt),
       fetchFromPerplexity(financialAnalysisPrompt),
     ]);
+    console.log('Fetched overview, market analysis, and financial analysis successfully.');
 
     // Strategic Analysis via OpenAI
     const strategicAnalysisPrompt = `## Strategic Analysis
@@ -283,17 +288,21 @@ Identify opportunities for ${sanitizedQuery} to expand into new markets or secto
 
 #### Resilience against Competitive Pressures
 Analyze how ${sanitizedQuery} can maintain resilience against competitive pressures.
-`
+`;
 
+    console.log('Fetching strategic analysis from OpenAI.');
     const strategicAnalysis = await fetchFromOpenAI(strategicAnalysisPrompt);
+    console.log('Fetched strategic analysis successfully.');
 
     // Summary and Key Questions via OpenAI
     const summaryPrompt = `Please provide a **Summary** of the strategic analysis of **${sanitizedQuery}**. Additionally, generate **five critical questions** that venture capitalists should consider when evaluating this company for investment. Focus on identifying potential risks, uncovering opportunities, and areas requiring further due diligence.
 
 Format the response using Markdown with headings and bullet points.
-`
+`;
 
+    console.log('Fetching summary and key questions from OpenAI.');
     const summaryResponse = await fetchFromOpenAI(summaryPrompt);
+    console.log('Fetched summary and key questions successfully.');
 
     // Extract summary and key questions
     let summary: string = '';
@@ -301,7 +310,7 @@ Format the response using Markdown with headings and bullet points.
 
     if (summaryResponse) {
       // Assuming the response is in markdown with headings and bullet points
-      // Split into summary and key questions based on heading
+      // Split into summary and key questions based on headings
       const summarySplit = summaryResponse.split('**Five Critical Questions**');
 
       if (summarySplit.length === 2) {
@@ -330,6 +339,7 @@ Format the response using Markdown with headings and bullet points.
 
     // Store in cache
     cache.set(sanitizedQuery, results);
+    console.log('Stored results in cache.');
 
     return NextResponse.json(results);
   } catch (error) {
