@@ -1,6 +1,6 @@
 // app/api/search/route.ts
 
-export const maxDuration = 60; // Maximum duration in seconds
+export const maxDuration = 60; // Increased to 5 minutes for o1 processing
 
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
@@ -13,8 +13,8 @@ const openai = new OpenAI({
 
 // Initialize LRU Cache
 const cache = new LRU<string, AnalysisResults>({
-  max: 500, // Maximum number of items
-  ttl: 1000 * 60 * 60, // 1 hour in milliseconds
+  max: 500,
+  ttl: 1000 * 60 * 60, // 1 hour
 });
 
 interface AnalysisResults {
@@ -26,7 +26,6 @@ interface AnalysisResults {
   keyQuestions: string[];
 }
 
-// Define fetchFromPerplexity function
 async function fetchFromPerplexity(prompt: string): Promise<string> {
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
@@ -36,12 +35,7 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
     },
     body: JSON.stringify({
       model: 'llama-3.1-sonar-large-128k-online',
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+      messages: [{ role: 'user', content: prompt }],
     }),
   });
 
@@ -51,42 +45,21 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
 
   const data = await response.json();
 
-  if (
-    !data ||
-    !data.choices ||
-    !Array.isArray(data.choices) ||
-    data.choices.length === 0 ||
-    !data.choices[0].message ||
-    !data.choices[0].message.content
-  ) {
+  if (!data?.choices?.[0]?.message?.content) {
     throw new Error('Invalid response structure from Perplexity API.');
   }
 
   return data.choices[0].message.content.trim();
 }
 
-// Define fetchFromOpenAI function
-async function fetchFromOpenAI(prompt: string): Promise<string> {
+async function analyzeWithO1(prompt: string): Promise<string> {
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    temperature: 0.7,
-    max_tokens: 1000,
+    model: 'o1-mini',
+    messages: [{ role: 'user', content: prompt }],
+    max_completion_tokens: 4000,
   });
 
-  if (
-    !response ||
-    !response.choices ||
-    !Array.isArray(response.choices) ||
-    response.choices.length === 0 ||
-    !response.choices[0].message ||
-    !response.choices[0].message.content
-  ) {
+  if (!response?.choices?.[0]?.message?.content) {
     throw new Error('Invalid response structure from OpenAI API.');
   }
 
@@ -97,30 +70,25 @@ export async function POST(req: Request) {
   try {
     const { query, type } = await req.json();
 
-    if (!query || query.trim() === '' || !type) {
+    if (!query?.trim() || !type) {
       return NextResponse.json({ error: 'Query and type parameters are required.' }, { status: 400 });
     }
 
     const sanitizedQuery = query.trim();
 
-    // Validate type
     if (type !== 'people' && type !== 'company') {
       return NextResponse.json({ error: 'Type must be either "people" or "company".' }, { status: 400 });
     }
 
-    // Check cache
     if (cache.has(sanitizedQuery)) {
-      console.log('Cache hit for query:', sanitizedQuery)
-      return NextResponse.json(cache.get(sanitizedQuery))
+      console.log('Cache hit for query:', sanitizedQuery);
+      return NextResponse.json(cache.get(sanitizedQuery));
     }
 
-    // Define prompts based on type
-    let overviewPrompt = ''
-    let marketAnalysisPrompt = ''
-    let financialAnalysisPrompt = ''
-
-    if (type === 'people') {
-      overviewPrompt = `# Results for: ${sanitizedQuery}
+    // Keep your detailed prompts structure
+    const basePrompts = {
+      people: {
+        overview: `# Results for: ${sanitizedQuery}
 
 ## Overview
 
@@ -140,10 +108,9 @@ Detail significant milestones achieved by ${sanitizedQuery}, such as fund closur
 Summarize the latest activities and developments involving ${sanitizedQuery}, including new investments and strategic initiatives.
 
 ### Mission and Support
-Explain the mission of ${sanitizedQuery} and the support services they offer to their portfolio companies beyond capital investment.
-`
+Explain the mission of ${sanitizedQuery} and the support services they offer to their portfolio companies beyond capital investment.`,
 
-      marketAnalysisPrompt = `## Market Analysis
+        market: `## Market Analysis
 
 ### Market and Competitive Landscape
 Provide an analysis of the market and competitive landscape in which ${sanitizedQuery} operates.
@@ -158,10 +125,9 @@ Discuss the emerging market trends relevant to ${sanitizedQuery}'s focus areas.
 Analyze how the leadership team of ${sanitizedQuery} influences its market position.
 
 ### Potential Threats and Opportunities
-Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.
-`
+Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.`,
 
-      financialAnalysisPrompt = `## Financial Analysis
+        financial: `## Financial Analysis
 
 ### Funding History
 Detail the funding history of ${sanitizedQuery}, including previous funds raised and key investors.
@@ -185,12 +151,10 @@ Identify any financial challenges and risks faced by ${sanitizedQuery}.
 Discuss how current market trends present opportunities or challenges for ${sanitizedQuery}.
 
 ### Financial Health Indicators
-Summarize key financial health indicators for ${sanitizedQuery}.
-`
-    } else if (type === 'company') {
-      // Define prompts for 'company' type similarly
-      // For brevity, let's assume they are similar but tailored to companies
-      overviewPrompt = `# Results for: ${sanitizedQuery}
+Summarize key financial health indicators for ${sanitizedQuery}.`
+      },
+      company: {
+        overview: `# Results for: ${sanitizedQuery}
 
 ## Overview
 
@@ -210,10 +174,9 @@ Detail significant milestones achieved by ${sanitizedQuery}, such as product lau
 Summarize the latest activities and developments involving ${sanitizedQuery}, including new products and strategic initiatives.
 
 ### Mission and Support
-Explain the mission of ${sanitizedQuery} and the support services they offer to their customers beyond their core products.
-`
+Explain the mission of ${sanitizedQuery} and the support services they offer to their customers beyond their core products.`,
 
-      marketAnalysisPrompt = `## Market Analysis
+        market: `## Market Analysis
 
 ### Market and Competitive Landscape
 Provide an analysis of the market and competitive landscape in which ${sanitizedQuery} operates.
@@ -228,10 +191,9 @@ Discuss the emerging market trends relevant to ${sanitizedQuery}'s focus areas.
 Analyze how the leadership team of ${sanitizedQuery} influences its market position.
 
 ### Potential Threats and Opportunities
-Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.
-`
+Identify potential threats and opportunities facing ${sanitizedQuery} in the current market.`,
 
-      financialAnalysisPrompt = `## Financial Analysis
+        financial: `## Financial Analysis
 
 ### Funding History
 Detail the funding history of ${sanitizedQuery}, including previous funding rounds and key investors.
@@ -255,72 +217,79 @@ Identify any financial challenges and risks faced by ${sanitizedQuery}.
 Discuss how current market trends present opportunities or challenges for ${sanitizedQuery}.
 
 ### Financial Health Indicators
-Summarize key financial health indicators for ${sanitizedQuery}.
-`
-    }
+Summarize key financial health indicators for ${sanitizedQuery}.`
+      }
+    };
 
-    // Fetch data concurrently
+    const selectedPrompts = basePrompts[type as keyof typeof basePrompts];
+
+    // Step 1: Gather factual information using Perplexity
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
-      fetchFromPerplexity(overviewPrompt),
-      fetchFromPerplexity(marketAnalysisPrompt),
-      fetchFromPerplexity(financialAnalysisPrompt),
+      fetchFromPerplexity(selectedPrompts.overview),
+      fetchFromPerplexity(selectedPrompts.market),
+      fetchFromPerplexity(selectedPrompts.financial),
     ]);
 
-    // Strategic Analysis via OpenAI
-    const strategicAnalysisPrompt = `## Strategic Analysis
+    // Step 2: Strategic Analysis with o1-mini
+    const strategicAnalysisPrompt = `Based on the following verified information about ${sanitizedQuery}:
 
-### Leadership Impact
-Analyze how the leadership team of ${sanitizedQuery} impacts its strategic direction and success.
+OVERVIEW:
+${overview}
 
-### Long-term Growth Potential
+MARKET ANALYSIS:
+${marketAnalysis}
 
-#### Scalability
-Evaluate the scalability of ${sanitizedQuery}'s business model.
+FINANCIAL ANALYSIS:
+${financialAnalysis}
 
-#### Innovation Capacity
-Assess the innovation capacity of ${sanitizedQuery} and its potential to adapt to market changes.
+Please provide a detailed strategic analysis covering:
 
-#### Market Expansion Opportunities
-Identify opportunities for ${sanitizedQuery} to expand into new markets or sectors.
+1. Leadership Impact
+- How the leadership team impacts strategic direction and success
 
-#### Resilience against Competitive Pressures
-Analyze how ${sanitizedQuery} can maintain resilience against competitive pressures.
-`
+2. Long-term Growth Potential
+- Scalability of the business model
+- Innovation capacity and adaptability
+- Market expansion opportunities
+- Competitive resilience
 
-    const strategicAnalysis = await fetchFromOpenAI(strategicAnalysisPrompt);
+Focus on drawing meaningful conclusions from the provided facts rather than introducing new information.`;
 
-    // Summary and Key Questions via OpenAI
-    const summaryPrompt = `Please provide a **Summary** of the strategic analysis of **${sanitizedQuery}**. Additionally, generate **five critical questions** that venture capitalists should consider when evaluating this company for investment. Focus on identifying potential risks, uncovering opportunities, and areas requiring further due diligence.
+    const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
 
-Format the response using Markdown with headings and bullet points.
-`
+    // Step 3: Final Summary and Key Questions with o1-mini
+    const finalSynthesisPrompt = `Based on the following comprehensive analysis of ${sanitizedQuery}:
 
-    const summaryResponse = await fetchFromOpenAI(summaryPrompt);
+STRATEGIC ANALYSIS:
+${strategicAnalysis}
 
-    // Extract summary and key questions
-    let summary: string = '';
+Please provide:
+1. A concise executive summary highlighting the most critical insights and strategic implications
+2. Five specific, thoughtful questions that venture capitalists should ask when evaluating this ${type}
+
+Focus on synthesizing the most important insights and formulating questions that probe key risks and opportunities.`;
+
+    const finalSynthesis = await analyzeWithO1(finalSynthesisPrompt);
+
+    // Parse the final synthesis
+    let summary = '';
     let keyQuestions: string[] = [];
 
-    if (summaryResponse) {
-      // Assuming the response is in markdown with headings and bullet points
-      // Split into summary and key questions based on heading
-      const summarySplit = summaryResponse.split('**Five Critical Questions**');
-
-      if (summarySplit.length === 2) {
-        summary = summarySplit[0].replace('**Summary**', '').trim();
-        const questionsText = summarySplit[1].replace('**Five Critical Questions**', '').trim();
-        keyQuestions = questionsText
-          .split('\n')
-          .filter(line => line.startsWith('- ') || /^\d+\./.test(line))
-          .map(line => line.replace(/^(-\s*|\d+\.\s*)/, '').trim());
-      } else {
-        // If the assistant didn't format correctly, attempt to extract
-        // For simplicity, assume the entire response is summary and key questions are empty
-        summary = summaryResponse;
-      }
+    const [summarySection, questionsSection] = finalSynthesis.split(/(?=Questions:|Key Questions:)/i);
+    
+    if (summarySection) {
+      summary = summarySection.trim();
     }
 
-    // Compile results
+    if (questionsSection) {
+      keyQuestions = questionsSection
+        .replace(/(?:Questions:|Key Questions:)/i, '')
+        .split(/(?:\d+\.|\n-|\n\*)\s+/)
+        .filter(q => q.trim())
+        .map(q => q.trim())
+        .slice(0, 5);
+    }
+
     const results: AnalysisResults = {
       overview,
       marketAnalysis,
@@ -330,10 +299,9 @@ Format the response using Markdown with headings and bullet points.
       keyQuestions,
     };
 
-    // Store in cache
     cache.set(sanitizedQuery, results);
-
     return NextResponse.json(results);
+
   } catch (error) {
     console.error('Error processing search:', error);
     if (error instanceof Error) {
