@@ -56,7 +56,7 @@ async function analyzeWithO1(prompt: string): Promise<string> {
   const response = await openai.chat.completions.create({
     model: 'o1-mini',
     messages: [{ role: 'user', content: prompt }],
-    max_completion_tokens: 4000,
+    max_completion_tokens: 8000,
   });
 
   if (!response?.choices?.[0]?.message?.content) {
@@ -230,66 +230,102 @@ Summarize key financial health indicators for ${sanitizedQuery}.`
       fetchFromPerplexity(selectedPrompts.financial),
     ]);
 
-    // Step 2: Strategic Analysis with o1-mini
-    const strategicAnalysisPrompt = `Based on the following verified information about ${sanitizedQuery}:
+    // Step 2: First o1 analysis phase - Pattern Recognition
+  const patternAnalysisPrompt = `Analyze the following verified information about ${sanitizedQuery}:
 
-OVERVIEW:
-${overview}
-
-MARKET ANALYSIS:
-${marketAnalysis}
-
-FINANCIAL ANALYSIS:
-${financialAnalysis}
-
-Please provide a detailed strategic analysis covering:
-
-1. Leadership Impact
-- How the leadership team impacts strategic direction and success
-
-2. Long-term Growth Potential
-- Scalability of the business model
-- Innovation capacity and adaptability
-- Market expansion opportunities
-- Competitive resilience
-
-Focus on drawing meaningful conclusions from the provided facts rather than introducing new information.`;
-
+  ${overview}
+  
+  ${marketAnalysis}
+  
+  ${financialAnalysis}
+  
+  Your task is to:
+  1. Identify non-obvious patterns and relationships between different aspects of the business
+  2. Find potential hidden risks and opportunities not explicitly stated
+  3. Analyze the interconnections between market position, financial performance, and strategic decisions
+  4. Evaluate the sustainability of current competitive advantages
+  5. Assess the company's positioning relative to major market trends
+  
+  Focus exclusively on pattern recognition and insight generation. Do not restate the provided information.`;
+  
+    const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
+  
+    // Step 3: Second o1 analysis phase - Strategic Deep Dive
+    const strategicAnalysisPrompt = `Based on both the verified information and the pattern analysis below, provide a comprehensive strategic analysis of ${sanitizedQuery}.
+  
+  PATTERN ANALYSIS:
+  ${patternAnalysis}
+  
+  VERIFIED INFORMATION:
+  - Overview: ${overview}
+  - Market: ${marketAnalysis}
+  - Financial: ${financialAnalysis}
+  
+  Focus on:
+  1. Leadership Impact
+     - Effectiveness of strategic decisions
+     - Quality of execution
+     - Vision alignment with market opportunities
+  
+  2. Growth Trajectory
+     - Scalability assessment
+     - Innovation potential
+     - Market expansion vectors
+     - Competitive durability
+  
+  3. Risk-Opportunity Matrix
+     - Strategic risks
+     - Market opportunities
+     - Execution challenges
+     - Growth catalysts
+  
+  Provide specific, actionable insights rather than general observations.`;
+  
     const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
-
-    // Step 3: Final Summary and Key Questions with o1-mini
-    const finalSynthesisPrompt = `Based on the following comprehensive analysis of ${sanitizedQuery}:
-
-STRATEGIC ANALYSIS:
-${strategicAnalysis}
-
-Please provide:
-1. A concise executive summary highlighting the most critical insights and strategic implications
-2. Five specific, thoughtful questions that venture capitalists should ask when evaluating this ${type}
-
-Focus on synthesizing the most important insights and formulating questions that probe key risks and opportunities.`;
-
+  
+    // Step 4: Final o1 synthesis phase - Executive Brief
+    const finalSynthesisPrompt = `Create an executive brief based on the following analysis of ${sanitizedQuery}:
+  
+  ${strategicAnalysis}
+  
+  Deliver:
+  1. A concise executive summary that highlights:
+     - Most significant strategic insights
+     - Critical success factors
+     - Key risks and opportunities
+     - Competitive positioning strength
+  
+  2. Five highly specific questions that venture capitalists should ask, focusing on:
+     - Validation of growth assumptions
+     - Testing of strategic hypotheses
+     - Assessment of execution capabilities
+     - Evaluation of risk mitigation strategies
+     - Understanding of competitive advantages
+  
+  Make all insights specific and actionable. Avoid general statements.`;
+  
     const finalSynthesis = await analyzeWithO1(finalSynthesisPrompt);
-
-    // Parse the final synthesis
+  
+    // Parse the final synthesis (improved parsing)
     let summary = '';
     let keyQuestions: string[] = [];
-
-    const [summarySection, questionsSection] = finalSynthesis.split(/(?=Questions:|Key Questions:)/i);
+  
+    const parts = finalSynthesis.split(/(?=Questions:|Key Questions:|Strategic Questions:)/i);
     
-    if (summarySection) {
-      summary = summarySection.trim();
+    if (parts[0]) {
+      summary = parts[0].replace(/(?:Summary|Executive Summary|Brief):/i, '').trim();
     }
-
-    if (questionsSection) {
-      keyQuestions = questionsSection
-        .replace(/(?:Questions:|Key Questions:)/i, '')
+  
+    if (parts[1]) {
+      const questionsText = parts[1].replace(/(?:Questions|Key Questions|Strategic Questions):/i, '');
+      keyQuestions = questionsText
         .split(/(?:\d+\.|\n-|\n\*)\s+/)
         .filter(q => q.trim())
         .map(q => q.trim())
+        .filter(q => q.endsWith('?'))
         .slice(0, 5);
     }
-
+  
     const results: AnalysisResults = {
       overview,
       marketAnalysis,
@@ -298,7 +334,7 @@ Focus on synthesizing the most important insights and formulating questions that
       summary,
       keyQuestions,
     };
-
+  
     cache.set(sanitizedQuery, results);
     return NextResponse.json(results);
 
