@@ -1,5 +1,7 @@
 // app/api/search/route.ts
 
+export const maxDuration = 60; // Maximum duration in seconds
+
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import LRU from 'lru-cache';
