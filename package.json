@@ -58,7 +58,8 @@
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.5.2",
     "undici": "^6.20.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zustand": "^5.0.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
