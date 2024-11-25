@@ -26,13 +26,13 @@ import remarkGfm from 'remark-gfm';
 import html2pdf from 'html2pdf.js';
 
 import { Components } from 'react-markdown';
-import { useReportsStore } from '@/app/stores/reportsStore'; // Import the store
+import { useReportsStore } from '@/store/reportsStore'; // Updated import path
 
 type MarkdownComponents = Components;
 
 export default function ReportsClientComponent() {
   const { data: session, status } = useSession();
-  const { results, isLoading, error, currentSearch, fetchReport } = useReportsStore();
+  const { results, isLoading, error, currentSearch, fetchReport, setError } = useReportsStore();
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const searchParams = useSearchParams();
@@ -52,7 +52,15 @@ export default function ReportsClientComponent() {
 
     const initiateFetch = () => {
       if (queryParam && (typeParam === 'people' || typeParam === 'company')) {
-        fetchReport(queryParam, typeParam as 'people' | 'company');
+        // Only fetch if currentSearch doesn't match or results are not present
+        if (
+          !currentSearch ||
+          currentSearch.query !== queryParam ||
+          currentSearch.type !== typeParam ||
+          !results
+        ) {
+          fetchReport(queryParam, typeParam as 'people' | 'company');
+        }
       } else {
         // Attempt to retrieve last search from localStorage
         const lastSearch = localStorage.getItem('lastSearch');
@@ -60,21 +68,29 @@ export default function ReportsClientComponent() {
           try {
             const { query, type } = JSON.parse(lastSearch);
             if (query && (type === 'people' || type === 'company')) {
-              router.replace(`/reports?query=${encodeURIComponent(query)}&type=${type}`);
-              fetchReport(query, type);
+              // Only fetch if currentSearch doesn't match or results are not present
+              if (
+                !currentSearch ||
+                currentSearch.query !== query ||
+                currentSearch.type !== type ||
+                !results
+              ) {
+                router.replace(`/reports?query=${encodeURIComponent(query)}&type=${type}`);
+                fetchReport(query, type);
+              }
               return;
             }
           } catch (e) {
             console.error('Error parsing lastSearch from localStorage:', e);
           }
         }
-        // If no valid search parameters, set an error
-        // Since the store handles error state, you might want to implement this in the store as well
+        // If no valid search parameters, set an error via the store
+        setError('Invalid search parameters.');
       }
     };
 
     initiateFetch();
-  }, [queryParam, typeParam, session, status, router, fetchReport]);
+  }, [queryParam, typeParam, session, status, router, fetchReport, currentSearch, results, setError]);
 
   // Load dark mode preference on initial render
   useEffect(() => {
@@ -404,7 +420,7 @@ export default function ReportsClientComponent() {
                       Key Questions
                     </h3>
                     <ul className="list-disc list-inside space-y-2">
-                      {results.keyQuestions.map((question, index) => (
+                      {results.keyQuestions.map((question: string, index: number) => (
                         <li
                           key={index}
                           className="text-gray-700 dark:text-gray-300"
@@ -418,8 +434,8 @@ export default function ReportsClientComponent() {
               </section>
             </div>
           )}
-        </div>
-      </main>
-    </div>
-  );
+          </div>
+        </main>
+      </div>
+    );
 }
