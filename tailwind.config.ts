@@ -4,6 +4,7 @@ import type { Config } from "tailwindcss";
 import typography from "@tailwindcss/typography";
 
 const config: Config = {
+  darkMode: 'class', // Enable dark mode using the 'class' strategy
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -19,4 +20,5 @@ const config: Config = {
   },
   plugins: [typography],
 };
+
 export default config;
