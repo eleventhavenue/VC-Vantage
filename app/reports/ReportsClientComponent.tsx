@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 import Link from 'next/link';
@@ -52,6 +52,9 @@ export default function ReportsClientComponent() {
 
   const queryParam = searchParams.get('query');
   const typeParam = searchParams.get('type');
+
+  // Ref to track if URL has been replaced
+  const hasReplacedRef = useRef(false);
 
   // Function to perform the search and store results
   const performSearch = async (query: string, type: 'people' | 'company') => {
@@ -104,11 +107,12 @@ export default function ReportsClientComponent() {
       } else {
         // Attempt to retrieve last search from localStorage
         const lastSearch = localStorage.getItem('lastSearch');
-        if (lastSearch) {
+        if (lastSearch && !hasReplacedRef.current) {
           try {
             const { query, type } = JSON.parse(lastSearch);
             if (query && (type === 'people' || type === 'company')) {
               // Update the URL with stored parameters without adding to history
+              hasReplacedRef.current = true; // Set the flag before replacing
               router.replace(`/reports?query=${encodeURIComponent(query)}&type=${type}`);
               performSearch(query, type);
               return;
@@ -466,9 +470,9 @@ export default function ReportsClientComponent() {
                 )}
               </section>
             </div>
-          )}
+            )}
           </div>
-        </main>
-      </div>
-    );
-}
+          </main>
+        </div>
+      );
+    }
