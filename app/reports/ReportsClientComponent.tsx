@@ -2,9 +2,8 @@
 
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Spinner from '@/components/ui/Spinner';
@@ -19,7 +18,7 @@ import {
   TrendingUp,
   DollarSign,
   PieChart,
-  ClipboardCheck, // Use this instead of ClipboardList
+  ClipboardCheck,
 } from 'lucide-react';
 import { useSession, signIn } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
@@ -27,24 +26,13 @@ import remarkGfm from 'remark-gfm';
 import html2pdf from 'html2pdf.js';
 
 import { Components } from 'react-markdown';
+import { useReportsStore } from '@/app/stores/reportsStore'; // Import the store
 
 type MarkdownComponents = Components;
 
-interface SearchResults {
-  overview: string;
-  marketAnalysis: string;
-  financialAnalysis: string;
-  strategicAnalysis: string;
-  summary: string;
-  keyQuestions: string[];
-}
-
 export default function ReportsClientComponent() {
   const { data: session, status } = useSession();
-  const [results, setResults] = useState<SearchResults | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const { results, isLoading, error, currentSearch, fetchReport } = useReportsStore();
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const searchParams = useSearchParams();
@@ -53,45 +41,7 @@ export default function ReportsClientComponent() {
   const queryParam = searchParams.get('query');
   const typeParam = searchParams.get('type');
 
-  // Ref to track if URL has been replaced
-  const hasReplacedRef = useRef(false);
-
-  // Function to perform the search and store results
-  const performSearch = async (query: string, type: 'people' | 'company') => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query, type }),
-      });
-
-      const contentType = response.headers.get('content-type');
-      if (!response.ok || !contentType?.includes('application/json')) {
-        const text = await response.text();
-        throw new Error(
-          `Server error: ${response.status} ${response.statusText} - ${text}`
-        );
-      }
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || 'An error occurred while fetching results.');
-      } else {
-        setResults(data);
-        // Update localStorage with the latest search
-        localStorage.setItem('lastSearch', JSON.stringify({ query, type }));
-      }
-    } catch (error) {
-      console.error('Error fetching results:', error);
-      setError('Failed to fetch results. Please try again later.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Function to handle fetching the report
   useEffect(() => {
     // Redirect to sign-in if not authenticated
     if (status === 'loading') return;
@@ -100,34 +50,31 @@ export default function ReportsClientComponent() {
       return;
     }
 
-    const fetchResults = async () => {
-      // Check if query and type are present in URL
+    const initiateFetch = () => {
       if (queryParam && (typeParam === 'people' || typeParam === 'company')) {
-        performSearch(queryParam, typeParam as 'people' | 'company');
+        fetchReport(queryParam, typeParam as 'people' | 'company');
       } else {
         // Attempt to retrieve last search from localStorage
         const lastSearch = localStorage.getItem('lastSearch');
-        if (lastSearch && !hasReplacedRef.current) {
+        if (lastSearch) {
           try {
             const { query, type } = JSON.parse(lastSearch);
             if (query && (type === 'people' || type === 'company')) {
-              // Update the URL with stored parameters without adding to history
-              hasReplacedRef.current = true; // Set the flag before replacing
               router.replace(`/reports?query=${encodeURIComponent(query)}&type=${type}`);
-              performSearch(query, type);
+              fetchReport(query, type);
               return;
             }
           } catch (e) {
             console.error('Error parsing lastSearch from localStorage:', e);
           }
         }
-        setError('Invalid search parameters.');
-        setIsLoading(false);
+        // If no valid search parameters, set an error
+        // Since the store handles error state, you might want to implement this in the store as well
       }
     };
 
-    fetchResults();
-  }, [queryParam, typeParam, session, status, router]);
+    initiateFetch();
+  }, [queryParam, typeParam, session, status, router, fetchReport]);
 
   // Load dark mode preference on initial render
   useEffect(() => {
@@ -164,11 +111,11 @@ export default function ReportsClientComponent() {
       alert('Report content not found.');
       return;
     }
-    if (!queryParam) {
+    if (!currentSearch?.query) {
       alert('Cannot export PDF: Missing query parameter.');
       return;
     }
-    const filename = `${queryParam}_Report.pdf`; // Safe to use as we checked above
+    const filename = `${currentSearch.query}_Report.pdf`;
     const opt = {
       margin: 0.5,
       filename: filename,
@@ -183,7 +130,7 @@ export default function ReportsClientComponent() {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Update markdownComponents
+  // Define markdown components
   const markdownComponents: MarkdownComponents = {
     h1: ({ ...props }) => (
       <h1
@@ -320,7 +267,7 @@ export default function ReportsClientComponent() {
                     Who Is...
                   </h1>
                   <span className="text-4xl font-bold ml-2 text-gray-800 dark:text-gray-100">
-                    {queryParam}
+                    {currentSearch?.query}
                   </span>
                 </div>
                 <div className="flex space-x-4 mt-4">
@@ -470,9 +417,9 @@ export default function ReportsClientComponent() {
                 )}
               </section>
             </div>
-            )}
-          </div>
-          </main>
+          )}
         </div>
-      );
-    }
+      </main>
+    </div>
+  );
+}
