@@ -1,6 +1,6 @@
 // app/api/search/route.ts
 
-export const maxDuration = 60; // Increased to 5 minutes for o1 processing
+export const maxDuration = 300; // Increased to 5 minutes for o1 processing
 
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
