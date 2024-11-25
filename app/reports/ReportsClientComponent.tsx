@@ -1,3 +1,5 @@
+// app/reports/ReportsClientComponent.tsx
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -6,13 +8,27 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Spinner from '@/components/ui/Spinner';
-import { Accordion, AccordionItem } from '@/components/ui/Accordion';
 import UserDropdown from '@/components/UserDropdown';
-import { FileText, MountainIcon, Search, Settings, Moon, Sun } from 'lucide-react';
+import {
+  FileText,
+  MountainIcon,
+  Search,
+  Settings,
+  Moon,
+  Sun,
+  TrendingUp,
+  DollarSign,
+  PieChart,
+  ClipboardCheck, // Use this instead of ClipboardList
+} from 'lucide-react';
 import { useSession, signIn } from 'next-auth/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import html2pdf from 'html2pdf.js'; // No TypeScript error now
+import html2pdf from 'html2pdf.js';
+
+import { Components } from 'react-markdown';
+
+type MarkdownComponents = Components;
 
 interface SearchResults {
   overview: string;
@@ -39,9 +55,6 @@ export default function ReportsClientComponent() {
   const type = typeParam === 'people' || typeParam === 'company' ? typeParam : undefined;
 
   useEffect(() => {
-    console.log('Query:', query);
-    console.log('Type:', type);
-
     // Redirect to sign-in if not authenticated
     if (status === 'loading') return;
     if (!session) {
@@ -88,24 +101,22 @@ export default function ReportsClientComponent() {
     fetchResults();
   }, [query, type, session, status]);
 
-  // In your useEffect for initializing dark mode
-useEffect(() => {
-  const storedTheme = localStorage.getItem('theme');
-  if (storedTheme === 'dark') {
-    setIsDarkMode(true);
-  }
-}, []);
+  // Load dark mode preference on initial render
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('theme');
+    setIsDarkMode(storedTheme === 'dark');
+  }, []);
 
-// Update the useEffect that toggles the class
-useEffect(() => {
-  if (isDarkMode) {
-    document.documentElement.classList.add('dark');
-    localStorage.setItem('theme', 'dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-    localStorage.setItem('theme', 'light');
-  }
-}, [isDarkMode]);
+  // Update the useEffect that toggles the class
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   if (status === 'loading') {
     return (
@@ -135,6 +146,34 @@ useEffect(() => {
     setIsDarkMode(!isDarkMode);
   };
 
+  // Update markdownComponents
+  const markdownComponents: MarkdownComponents = {
+    h1: ({ ...props }) => (
+      <h1
+        className="text-3xl font-bold mt-8 mb-4 text-gray-900 dark:text-gray-100"
+        {...props}
+      />
+    ),
+    h2: ({ ...props }) => (
+      <h2
+        className="text-2xl font-bold mt-6 mb-3 text-gray-800 dark:text-gray-200"
+        {...props}
+      />
+    ),
+    h3: ({ ...props }) => (
+      <h3
+        className="text-xl font-semibold mt-4 mb-2 text-gray-700 dark:text-gray-300"
+        {...props}
+      />
+    ),
+    p: ({ ...props }) => (
+      <p className="mt-2 text-gray-700 dark:text-gray-300" {...props} />
+    ),
+    li: ({ ...props }) => (
+      <li className="ml-6 list-disc text-gray-700 dark:text-gray-300" {...props} />
+    ),
+  };
+
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
@@ -142,7 +181,9 @@ useEffect(() => {
         <div className="p-4">
           <Link href="/" className="flex items-center space-x-2">
             <MountainIcon className="h-6 w-6 text-blue-500" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">VC Vantage</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">
+              VC Vantage
+            </span>
           </Link>
         </div>
         <nav className="mt-6">
@@ -173,16 +214,23 @@ useEffect(() => {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm">
+        <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Reports</h1>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              Reports
+            </h1>
             <div className="flex items-center space-x-4">
               {/* Dark mode toggle button */}
               <button
                 onClick={toggleDarkMode}
                 className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none"
+                aria-label="Toggle Dark Mode"
               >
-                {isDarkMode ? <Sun className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
+                {isDarkMode ? (
+                  <Sun className="h-6 w-6" />
+                ) : (
+                  <Moon className="h-6 w-6" />
+                )}
               </button>
               <UserDropdown />
             </div>
@@ -191,124 +239,201 @@ useEffect(() => {
 
         {/* Content */}
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0">
-            {/* Loading State */}
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center h-full bg-white dark:bg-gray-800 rounded-lg shadow p-8">
-                <Spinner className="w-16 h-16 text-blue-500 mb-4" />
-                <p className="text-xl text-gray-700 dark:text-gray-200">
-                  Fetching detailed analysis, please wait...
-                </p>
-              </div>
-            )}
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center h-full bg-white dark:bg-gray-800 rounded-lg shadow p-8">
+              <Spinner className="w-16 h-16 text-blue-500 mb-4" />
+              <p className="text-xl text-gray-700 dark:text-gray-200">
+                Fetching detailed analysis, please wait...
+              </p>
+            </div>
+          )}
 
-            {/* Error State */}
-            {error && (
-              <div className="flex flex-col items-center justify-center h-full bg-red-100 dark:bg-red-900 rounded-lg shadow p-8">
-                <p className="text-red-600 dark:text-red-300 text-xl mb-4">{error}</p>
-                <Link href="/search">
-                  <Button className="mt-2 px-6 py-3">Back to Search</Button>
-                </Link>
-              </div>
-            )}
+          {/* Error State */}
+          {error && (
+            <div className="flex flex-col items-center justify-center h-full bg-red-100 dark:bg-red-900 rounded-lg shadow p-8">
+              <p className="text-red-600 dark:text-red-300 text-xl mb-4">
+                {error}
+              </p>
+              <Link href="/search">
+                <Button className="mt-2 px-6 py-3">Back to Search</Button>
+              </Link>
+            </div>
+          )}
 
-            {/* No Results State */}
-            {!isLoading && !error && !results && (
-              <div className="flex flex-col items-center justify-center h-full bg-gray-200 dark:bg-gray-700 rounded-lg shadow p-8">
-                <p className="text-gray-700 dark:text-gray-200 text-xl mb-4">No results found.</p>
-                <Link href="/search">
-                  <Button className="mt-2 px-6 py-3">Back to Search</Button>
-                </Link>
-              </div>
-            )}
+          {/* No Results State */}
+          {!isLoading && !error && !results && (
+            <div className="flex flex-col items-center justify-center h-full bg-gray-200 dark:bg-gray-700 rounded-lg shadow p-8">
+              <p className="text-gray-700 dark:text-gray-200 text-xl mb-4">
+                No results found.
+              </p>
+              <Link href="/search">
+                <Button className="mt-2 px-6 py-3">Back to Search</Button>
+              </Link>
+            </div>
+          )}
 
-            {/* Display Results */}
-            {results && (
-              <div id="report-content" className="space-y-8">
-                {/* Header with Branding */}
-                <header className="flex items-center justify-between mb-8">
-                  <div className="flex items-center">
-                    <h1 className="text-4xl font-bold ml-4 text-blue-600 dark:text-blue-400">
-                      Who Is...
-                    </h1>
-                    <span className="text-4xl font-bold ml-2 text-gray-800 dark:text-gray-100">
-                      {query}
-                    </span>
+          {/* Display Results */}
+          {results && (
+            <div id="report-content" className="space-y-8">
+              {/* Header with Branding */}
+              <header className="flex flex-col items-center justify-between mb-8">
+                <div className="flex items-center">
+                  <h1 className="text-4xl font-bold ml-4 text-blue-600 dark:text-blue-400">
+                    Who Is...
+                  </h1>
+                  <span className="text-4xl font-bold ml-2 text-gray-800 dark:text-gray-100">
+                    {query}
+                  </span>
+                </div>
+                <div className="flex space-x-4 mt-4">
+                  <Button onClick={handleExportPDF} className="px-6 py-3">
+                    Download PDF
+                  </Button>
+                  <Link href="/search">
+                    <Button className="px-6 py-3">Back to Search</Button>
+                  </Link>
+                </div>
+              </header>
+
+              {/* Table of Contents */}
+              <div className="mb-8">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Table of Contents
+                </h2>
+                <ul className="list-decimal list-inside mt-4 space-y-2">
+                  <li>
+                    <a
+                      href="#overview"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Overview
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#market-analysis"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Market Analysis
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#financial-analysis"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Financial Analysis
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#strategic-analysis"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Strategic Analysis
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#summary"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Summary and Key Questions
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Report Sections */}
+              <section id="overview">
+                <h2 className="text-2xl font-bold mb-4 flex items-center text-gray-900 dark:text-white">
+                  <FileText className="h-6 w-6 mr-2" /> Overview
+                </h2>
+                <div className="prose prose-lg dark:prose-dark max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {results.overview}
+                  </ReactMarkdown>
+                </div>
+              </section>
+
+              <section id="market-analysis">
+                <h2 className="text-2xl font-bold mb-4 flex items-center text-gray-900 dark:text-white">
+                  <TrendingUp className="h-6 w-6 mr-2" /> Market Analysis
+                </h2>
+                <div className="prose prose-lg dark:prose-dark max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {results.marketAnalysis}
+                  </ReactMarkdown>
+                </div>
+              </section>
+
+              <section id="financial-analysis">
+                <h2 className="text-2xl font-bold mb-4 flex items-center text-gray-900 dark:text-white">
+                  <DollarSign className="h-6 w-6 mr-2" /> Financial Analysis
+                </h2>
+                <div className="prose prose-lg dark:prose-dark max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {results.financialAnalysis}
+                  </ReactMarkdown>
+                </div>
+              </section>
+
+              <section id="strategic-analysis">
+                <h2 className="text-2xl font-bold mb-4 flex items-center text-gray-900 dark:text-white">
+                  <PieChart className="h-6 w-6 mr-2" /> Strategic Analysis
+                </h2>
+                <div className="prose prose-lg dark:prose-dark max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {results.strategicAnalysis}
+                  </ReactMarkdown>
+                </div>
+              </section>
+
+              <section id="summary">
+                <h2 className="text-2xl font-bold mb-4 flex items-center text-gray-900 dark:text-white">
+                  <ClipboardCheck className="h-6 w-6 mr-2" /> Summary and Key Questions
+                </h2>
+                <div className="prose prose-lg dark:prose-dark max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {results.summary}
+                  </ReactMarkdown>
+                </div>
+                {results.keyQuestions.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                      Key Questions
+                    </h3>
+                    <ul className="list-disc list-inside space-y-2">
+                      {results.keyQuestions.map((question, index) => (
+                        <li
+                          key={index}
+                          className="text-gray-700 dark:text-gray-300"
+                        >
+                          {question}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <div className="flex space-x-4">
-                    <Button onClick={handleExportPDF} className="px-6 py-3">
-                      Download PDF
-                    </Button>
-                    <Link href="/search">
-                      <Button className="px-6 py-3">Back to Search</Button>
-                    </Link>
-                  </div>
-                </header>
-
-                {/* Accordion for Sections */}
-                <Accordion>
-                  {/* Overview Section */}
-                  <AccordionItem title="Overview">
-                    <div className="prose prose-lg dark:prose-dark max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {results.overview}
-                      </ReactMarkdown>
-                    </div>
-                  </AccordionItem>
-
-                  {/* Market Analysis Section */}
-                  <AccordionItem title="Market Analysis">
-                    <div className="prose prose-lg dark:prose-dark max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {results.marketAnalysis}
-                      </ReactMarkdown>
-                    </div>
-                  </AccordionItem>
-
-                  {/* Financial Analysis Section */}
-                  <AccordionItem title="Financial Analysis">
-                    <div className="prose prose-lg dark:prose-dark max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {results.financialAnalysis}
-                      </ReactMarkdown>
-                    </div>
-                  </AccordionItem>
-
-                  {/* Strategic Analysis Section */}
-                  <AccordionItem title="Strategic Analysis">
-                    <div className="prose prose-lg dark:prose-dark max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {results.strategicAnalysis}
-                      </ReactMarkdown>
-                    </div>
-                  </AccordionItem>
-
-                  {/* Summary and Key Questions Section */}
-                  <AccordionItem title="Summary and Key Questions">
-                    <div className="prose prose-lg dark:prose-dark max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {results.summary}
-                      </ReactMarkdown>
-                    </div>
-                    {results.keyQuestions.length > 0 && (
-                      <div className="mt-4">
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-                          Key Questions
-                        </h2>
-                        <ul className="list-disc list-inside space-y-2">
-                          {results.keyQuestions.map((question, index) => (
-                            <li key={index} className="text-gray-700 dark:text-gray-300">
-                              {question}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </AccordionItem>
-                </Accordion>
-              </div>
-            )}
-          </div>
+                )}
+              </section>
+            </div>
+          )}
         </div>
       </main>
     </div>

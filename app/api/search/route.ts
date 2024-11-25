@@ -5,12 +5,15 @@ export const maxDuration = 300; // Increased to 5 minutes for o1 processing
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import LRU from 'lru-cache';
+import { z } from 'zod';
 
 // Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
-
+function removeCitations(text: string): string {
+  return text.replace(/\[\d+\]/g, '');
+}
 // Initialize LRU Cache
 const cache = new LRU<string, AnalysisResults>({
   max: 500,
@@ -49,7 +52,10 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
     throw new Error('Invalid response structure from Perplexity API.');
   }
 
-  return data.choices[0].message.content.trim();
+  let content = data.choices[0].message.content.trim();
+  content = removeCitations(content);
+  return content;
+  
 }
 
 async function analyzeWithO1(prompt: string): Promise<string> {
@@ -66,9 +72,17 @@ async function analyzeWithO1(prompt: string): Promise<string> {
   return response.choices[0].message.content.trim();
 }
 
+// Define a schema for the request body
+const requestSchema = z.object({
+  query: z.string().min(1).max(500),
+  type: z.enum(['people', 'company']),
+});
+
 export async function POST(req: Request) {
   try {
-    const { query, type } = await req.json();
+    const body = await req.json();
+    const { query, type } = requestSchema.parse(body);
+    
 
     if (!query?.trim() || !type) {
       return NextResponse.json({ error: 'Query and type parameters are required.' }, { status: 400 });
@@ -108,7 +122,10 @@ Detail significant milestones achieved by ${sanitizedQuery}, such as fund closur
 Summarize the latest activities and developments involving ${sanitizedQuery}, including new investments and strategic initiatives.
 
 ### Mission and Support
-Explain the mission of ${sanitizedQuery} and the support services they offer to their portfolio companies beyond capital investment.`,
+Explain the mission of ${sanitizedQuery} and the support services they offer to their portfolio companies beyond capital investment.
+
+### LinkedIn Profile
+Incorporate information from ${sanitizedQuery}'s LinkedIn profile to ensure accuracy in employment history, roles, and professional achievements. If a LinkedIn profile is unavailable, use other reputable sources such as official company websites, press releases, and professional biographies to provide accurate information`,
 
         market: `## Market Analysis
 
@@ -174,7 +191,10 @@ Detail significant milestones achieved by ${sanitizedQuery}, such as product lau
 Summarize the latest activities and developments involving ${sanitizedQuery}, including new products and strategic initiatives.
 
 ### Mission and Support
-Explain the mission of ${sanitizedQuery} and the support services they offer to their customers beyond their core products.`,
+Explain the mission of ${sanitizedQuery} and the support services they offer to their customers beyond their core products.
+
+### LinkedIn Profile
+Incorporate information from ${sanitizedQuery}'s LinkedIn profile to ensure accuracy in company history, leadership roles, and strategic initiatives.  If a LinkedIn profile is unavailable, use other reputable sources such as official company websites, press releases to provide accurate information.`,
 
         market: `## Market Analysis
 
@@ -339,6 +359,9 @@ Summarize key financial health indicators for ${sanitizedQuery}.`
     return NextResponse.json(results);
 
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid input parameters.' }, { status: 400 });
+    }
     console.error('Error processing search:', error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
