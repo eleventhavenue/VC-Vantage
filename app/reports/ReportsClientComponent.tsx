@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -48,11 +48,46 @@ export default function ReportsClientComponent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
+
   const queryParam = searchParams.get('query');
   const typeParam = searchParams.get('type');
 
-  const query = queryParam || '';
-  const type = typeParam === 'people' || typeParam === 'company' ? typeParam : undefined;
+  // Function to perform the search and store results
+  const performSearch = async (query: string, type: 'people' | 'company') => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, type }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!response.ok || !contentType?.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(
+          `Server error: ${response.status} ${response.statusText} - ${text}`
+        );
+      }
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || 'An error occurred while fetching results.');
+      } else {
+        setResults(data);
+        // Update localStorage with the latest search
+        localStorage.setItem('lastSearch', JSON.stringify({ query, type }));
+      }
+    } catch (error) {
+      console.error('Error fetching results:', error);
+      setError('Failed to fetch results. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -63,43 +98,32 @@ export default function ReportsClientComponent() {
     }
 
     const fetchResults = async () => {
-      if (!query || !type) {
+      // Check if query and type are present in URL
+      if (queryParam && (typeParam === 'people' || typeParam === 'company')) {
+        performSearch(queryParam, typeParam as 'people' | 'company');
+      } else {
+        // Attempt to retrieve last search from localStorage
+        const lastSearch = localStorage.getItem('lastSearch');
+        if (lastSearch) {
+          try {
+            const { query, type } = JSON.parse(lastSearch);
+            if (query && (type === 'people' || type === 'company')) {
+              // Update the URL with stored parameters without adding to history
+              router.replace(`/reports?query=${encodeURIComponent(query)}&type=${type}`);
+              performSearch(query, type);
+              return;
+            }
+          } catch (e) {
+            console.error('Error parsing lastSearch from localStorage:', e);
+          }
+        }
         setError('Invalid search parameters.');
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const response = await fetch('/api/search', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ query, type }),
-        });
-
-        const contentType = response.headers.get('content-type');
-        if (!response.ok || !contentType?.includes('application/json')) {
-          const text = await response.text();
-          throw new Error(
-            `Server error: ${response.status} ${response.statusText} - ${text}`
-          );
-        }
-        const data = await response.json();
-        if (!response.ok) {
-          setError(data.error || 'An error occurred while fetching results.');
-        } else {
-          setResults(data);
-        }
-      } catch (error) {
-        console.error('Error fetching results:', error);
-        setError('Failed to fetch results. Please try again later.');
-      } finally {
         setIsLoading(false);
       }
     };
 
     fetchResults();
-  }, [query, type, session, status]);
+  }, [queryParam, typeParam, session, status, router]);
 
   // Load dark mode preference on initial render
   useEffect(() => {
@@ -107,7 +131,7 @@ export default function ReportsClientComponent() {
     setIsDarkMode(storedTheme === 'dark');
   }, []);
 
-  // Update the useEffect that toggles the class
+  // Apply dark mode class to <html> element
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -132,9 +156,18 @@ export default function ReportsClientComponent() {
 
   const handleExportPDF = () => {
     const element = document.getElementById('report-content');
+    if (!element) {
+      alert('Report content not found.');
+      return;
+    }
+    if (!queryParam) {
+      alert('Cannot export PDF: Missing query parameter.');
+      return;
+    }
+    const filename = `${queryParam}_Report.pdf`; // Safe to use as we checked above
     const opt = {
       margin: 0.5,
-      filename: `${query}_Report.pdf`,
+      filename: filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
@@ -283,7 +316,7 @@ export default function ReportsClientComponent() {
                     Who Is...
                   </h1>
                   <span className="text-4xl font-bold ml-2 text-gray-800 dark:text-gray-100">
-                    {query}
+                    {queryParam}
                   </span>
                 </div>
                 <div className="flex space-x-4 mt-4">
@@ -434,8 +467,8 @@ export default function ReportsClientComponent() {
               </section>
             </div>
           )}
-        </div>
-      </main>
-    </div>
-  );
+          </div>
+        </main>
+      </div>
+    );
 }

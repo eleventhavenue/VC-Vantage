@@ -1,3 +1,5 @@
+// app/search/SearchPage.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -68,6 +70,9 @@ export default function SearchPage() {
     }
     setIsLoading(true);
     try {
+      // Store the last search parameters in localStorage
+      localStorage.setItem('lastSearch', JSON.stringify({ query, type }));
+
       await router.push(
         `/reports?query=${encodeURIComponent(query)}&type=${type}`
       );
