@@ -1,4 +1,4 @@
-// app/search/SearchPage.tsx
+// app/search/page.tsx
 
 'use client';
 

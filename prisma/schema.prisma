@@ -10,16 +10,22 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String? // Nullable if using OAuth without password
-  accounts      Account[]
-  sessions      Session[]
-  reports       Report[] // New relation field
-  createdAt     DateTime  @default(now())
+  id              String    @id @default(uuid())
+  name            String?
+  email           String    @unique
+  emailVerified   DateTime?
+  image           String?
+  password        String?
+  resetToken      String?   @unique
+  resetTokenExpiry DateTime?
+  accounts        Account[]
+  sessions        Session[]
+  reports         Report[]
+  createdAt       DateTime  @default(now())
+    previousPasswords  String?       // Stores last 3 password hashes
+  lastPasswordChange DateTime?     // Tracks when password was last changed
+  passwordAttempts   Int          @default(0)
+  lockoutUntil      DateTime?     // For temporary account lockouts
 }
 
 model Account {

@@ -46,3 +46,6 @@ COOKIE_SECRET=5060f2f78bc2d202504cfcd72ddd4ef21d7b07835a4c55acb7531a2be0096f493e
 # .gitignore
 .env
 
+
+# Sentry Config File
+.env.sentry-build-plugin
