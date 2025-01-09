@@ -14,6 +14,7 @@ model User {
   name            String?
   email           String    @unique
   emailVerified   DateTime?
+  verificationToken String?  @unique
   image           String?
   password        String?
   resetToken      String?   @unique
@@ -22,10 +23,11 @@ model User {
   sessions        Session[]
   reports         Report[]
   createdAt       DateTime  @default(now())
-    previousPasswords  String?       // Stores last 3 password hashes
+  previousPasswords  String?       // Stores last 3 password hashes
   lastPasswordChange DateTime?     // Tracks when password was last changed
   passwordAttempts   Int          @default(0)
   lockoutUntil      DateTime?     // For temporary account lockouts
+  lastLogin        DateTime?
 }
 
 model Account {

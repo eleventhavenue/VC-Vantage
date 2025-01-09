@@ -1,3 +1,5 @@
+// app/settings/page.tsx
+
 'use client';
 
 import { useSession, signIn } from 'next-auth/react';

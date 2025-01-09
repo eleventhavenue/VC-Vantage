@@ -2,65 +2,87 @@
 
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/auth';
-import { createUser, getUserByEmail } from '@/lib/user';
-import prisma from '@/lib/prisma'; // Ensure prisma is imported
+import { getUserByEmail } from '@/lib/user';
+import prisma from '@/lib/prisma';
+import { randomBytes } from 'crypto';
+import { sendEmail } from '@/lib/email';
 
-// Define the expected structure of the request body
 interface RegisterRequestBody {
   email: string;
   password: string;
 }
 
-// Define the structure of the API response
-interface RegisterResponse {
-  message: string;
-  user?: {
-    id: string;
-    email: string;
-  };
-}
 
 export async function POST(request: Request) {
   try {
-    // Parse the JSON body
     const { email, password } = (await request.json()) as RegisterRequestBody;
 
-    // **1. Input Validation**
+    // Input Validation
     if (!email || !email.includes('@') || !password || password.length < 6) {
-      const invalidInputResponse: RegisterResponse = { message: 'Invalid input.' };
-      return NextResponse.json(invalidInputResponse, { status: 400 });
+      return NextResponse.json(
+        { message: 'Invalid input.' },
+        { status: 400 }
+      );
     }
 
-    // **2. Check for Existing User**
+    // Check for Existing User
     const existingUser = await getUserByEmail(email);
     if (existingUser) {
-      const userExistsResponse: RegisterResponse = { message: 'User already exists.' };
-      return NextResponse.json(userExistsResponse, { status: 409 });
+      return NextResponse.json(
+        { message: 'User already exists.' },
+        { status: 409 }
+      );
     }
 
-    // **3. Hash Password and Create User**
-    const hashedPassword = await hashPassword(password);
-    const user = await createUser(email, hashedPassword);
+    // Generate verification token
+    const verificationToken = randomBytes(32).toString('hex');
 
-    // **4. Create Account Record for CredentialsProvider**
+    // Hash Password and Create User
+    const hashedPassword = await hashPassword(password);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        verificationToken,
+      },
+    });
+
+    // Generate verification URL
+    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?token=${verificationToken}`;
+
+    // Send verification email
+    await sendEmail({
+      to: email,
+      subject: 'Verify your VC Vantage account',
+      html: `
+        <h1>Welcome to VC Vantage!</h1>
+        <p>Thank you for registering. Please verify your email address by clicking the link below:</p>
+        <a href="${verificationUrl}">${verificationUrl}</a>
+        <p>If you didn't create an account with us, you can safely ignore this email.</p>
+        <p>This link will expire in 24 hours.</p>
+      `,
+    });
+
+    // Create Account Record
     await prisma.account.create({
       data: {
         userId: user.id,
         type: 'credentials',
         provider: 'credentials',
-        providerAccountId: email, // Using email as providerAccountId
+        providerAccountId: email,
       },
     });
 
-    const successResponse: RegisterResponse = {
-      message: 'User created successfully.',
+    return NextResponse.json({
+      message: 'Registration successful. Please check your email to verify your account.',
       user: { id: user.id, email: user.email },
-    };
-    return NextResponse.json(successResponse, { status: 201 });
-  } catch (err: unknown) { // Changed from 'any' to 'unknown'
-    // **4. Handle Unexpected Errors**
+    }, { status: 201 });
+
+  } catch (err: unknown) {
     console.error('Registration Error:', err);
-    const errorResponse: RegisterResponse = { message: 'An unexpected error occurred.' };
-    return NextResponse.json(errorResponse, { status: 500 });
+    return NextResponse.json(
+      { message: 'An unexpected error occurred.' },
+      { status: 500 }
+    );
   }
 }

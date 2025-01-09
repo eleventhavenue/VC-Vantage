@@ -41,6 +41,11 @@ const handler = NextAuth({
           throw new Error("No user found with the given email");
         }
 
+        // Check if email is verified
+        if (!user.emailVerified) {
+          throw new Error("Please verify your email before signing in");
+        }
+
         // Ensure user.password is a string
         if (!user.password) {
           throw new Error("No password set for this user.");
@@ -52,29 +57,43 @@ const handler = NextAuth({
         }
 
         console.log("Credentials authorize successful:", user.email);
-        return { id: user.id.toString(), email: user.email };
+        return { 
+          id: user.id.toString(), 
+          email: user.email,
+          emailVerified: user.emailVerified,
+          name: user.name
+        };
       },
     }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-    // Add more providers if needed
   ],
   session: {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/auth", // Redirect to your custom auth page
-    // You can also define signOut, error, verifyRequest, newUser pages if needed
+    signIn: "/auth",
+    verifyRequest: '/auth/verify-request', // Add this line
+    error: '/auth/error', // Add this line
   },
   callbacks: {
     async signIn({ user, account, profile, email, credentials }) {
       console.log("signIn callback:", { user, account, profile, email, credentials });
       
-      // Additional logic can be added here if needed
+      // If using OAuth provider, consider the email as verified
+      if (account?.provider !== "credentials") {
+        return true;
+      }
       
-      return true; // Allow sign in
+      // For credentials provider, check if email is verified
+      if (user.emailVerified) {
+        return true;
+      }
+
+      // Redirect to verify request page if email not verified
+      return '/auth/verify-request';
     },
     async redirect({ url, baseUrl }) {
       console.log("redirect callback:", { url, baseUrl });
@@ -89,6 +108,7 @@ const handler = NextAuth({
       console.log("jwt callback:", { token, user, account, profile, isNewUser });
       if (user) {
         token.id = user.id;
+        token.emailVerified = user.emailVerified;
       }
       return token;
     },
@@ -96,11 +116,12 @@ const handler = NextAuth({
       console.log("session callback:", { session, token, user });
       if (token && session.user) {
         session.user.id = token.id as string;
+        session.user.emailVerified = token.emailVerified as Date | null;
       }
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET, // <-- Ensure this line exists
+  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 });
 

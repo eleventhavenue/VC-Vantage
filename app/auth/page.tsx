@@ -10,32 +10,52 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Label from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MountainIcon } from 'lucide-react';
+import { MountainIcon, Check, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { validatePassword } from '@/lib/password-utils';
 
 export default function AuthPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const router = useRouter();
-  
-  // Destructure only 'status' to avoid unused variable
   const { status } = useSession();
 
+  // State declarations
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState<{
+    score: number;
+    feedback: string[];
+    isStrong: boolean;
+  }>({ score: 0, feedback: [], isStrong: false });
+
+  // Helper functions
+  const getStrengthColor = (score: number) => {
+    if (score < 4) return 'bg-red-500';
+    if (score < 7) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  // Effects
   useEffect(() => {
     if (status === "authenticated") {
       router.push('/search');
     }
   }, [status, router]);
 
-  // State variables for Login
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  useEffect(() => {
+    if (registerPassword) {
+      const result = validatePassword(registerPassword);
+      setPasswordStrength(result);
+    } else {
+      setPasswordStrength({ score: 0, feedback: [], isStrong: false });
+    }
+  }, [registerPassword]);
 
-  // State variables for Registration
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
+  // Event handlers
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -65,6 +85,12 @@ export default function AuthPage() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+
+    if (!passwordStrength.isStrong) {
+      setError('Please choose a stronger password');
+      setIsLoading(false);
+      return;
+    }
 
     if (registerPassword !== confirmPassword) {
       setError('Passwords do not match.');
@@ -187,6 +213,29 @@ export default function AuthPage() {
                     value={registerPassword}
                     onChange={(e) => setRegisterPassword(e.target.value)}
                   />
+                  {/* Password strength indicator */}
+                  {registerPassword && (
+                    <div className="space-y-2">
+                      <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${getStrengthColor(passwordStrength.score)} transition-all duration-300`}
+                          style={{ width: `${passwordStrength.score * 10}%` }}
+                        />
+                      </div>
+                      <ul className="space-y-1">
+                        {passwordStrength.feedback.map((feedback, index) => (
+                          <li key={index} className="text-sm flex items-center text-gray-600">
+                            {passwordStrength.isStrong ? (
+                              <Check className="h-4 w-4 text-green-500 mr-2" />
+                            ) : (
+                              <X className="h-4 w-4 text-red-500 mr-2" />
+                            )}
+                            {feedback}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirm Password</Label>
@@ -198,7 +247,11 @@ export default function AuthPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isLoading || !passwordStrength.isStrong}
+                >
                   {isLoading ? 'Creating account...' : 'CREATE ACCOUNT'}
                 </Button>
               </form>
@@ -222,53 +275,12 @@ export default function AuthPage() {
                 <Button 
                   variant="outline" 
                   className="w-full flex items-center justify-center" 
-                  onClick={() => signIn('google', { callbackUrl: '/search' })} // Specifying callbackUrl
+                  onClick={() => signIn('google', { callbackUrl: '/search' })}
                 >
-                  {/* Google SVG */}
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path d="M21.35 11.1h-9.17v2.95h5.44c-.24 1.27-1.3 3.69-5.44 3.69-3.27 0-5.94-2.66-5.94-5.94s2.67-5.94 5.94-5.94c1.94 0 3.24.82 3.99 1.52l2.73-2.64C16.52 3.09 14.04 2 11.35 2c-5.33 0-9.7 4.37-9.7 9.7s4.37 9.7 9.7 9.7c5.16 0 8.89-3.48 9.59-8.11l-9.59-.01z"/>
                   </svg>
                   Log in with Google
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full flex items-center justify-center" 
-                  onClick={() => signIn('linkedin', { callbackUrl: '/search' })} // Specifying callbackUrl
-                >
-                  {/* LinkedIn SVG */}
-                  <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 
-                    2.239 5 5 5h14c2.761 0 5-2.239 
-                    5-5v-14c0-2.761-2.239-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.268c-.966 
-                    0-1.75-.784-1.75-1.75s.784-1.75 
-                    1.75-1.75 1.75.784 1.75 
-                    1.75-.784 1.75-1.75 1.75zm13.5 
-                    11.268h-3v-5.604c0-1.337-.026-3.063-1.867-3.063-1.869 
-                    0-2.155 1.459-2.155 2.967v5.7h-3v-10h2.88v1.367h.041c.401-.76 
-                    1.379-1.562 2.84-1.562 3.04 0 3.6 2.0 
-                    3.6 4.6v5.6z"/>
-                  </svg>
-                  Log in with LinkedIn
-                </Button>
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-4 text-center">
-                <Button 
-                  variant="link" 
-                  className="text-sm" 
-                  onClick={() => signIn('sso', { callbackUrl: '/search' })} // Implement SSO as needed
-                >
-                  Log In With Single Sign-on
-                </Button>
-                <Button 
-                  variant="link" 
-                  className="text-sm" 
-                  onClick={() => {
-                    // Implement "Send Me a Login Link" functionality
-                    console.log('Send login link');
-                  }}
-                >
-                  Send Me a Login Link
                 </Button>
               </div>
             </div>
@@ -280,5 +292,5 @@ export default function AuthPage() {
         © 2024 VC Vantage. All rights reserved.
       </footer>
     </div>
-  )
+  );
 }

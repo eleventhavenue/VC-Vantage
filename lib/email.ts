@@ -27,11 +27,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
 
     return { 
       success: true, 
-      data: {
-        id: data.id,
-        to: data.to,
-        from: data.from
-      }
+      data
     };
   } catch (error) {
     console.error('Error sending email:', error);
