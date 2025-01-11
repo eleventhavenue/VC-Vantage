@@ -27,6 +27,7 @@ import {
   Sun,
 } from 'lucide-react';
 import UserDropdown from '@/components/UserDropdown';
+import DeleteAccountDialog from '@/components/DeleteAccountDialog';  // New import for delete dialog
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
@@ -34,6 +35,8 @@ export default function SettingsPage() {
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(false);
+  // State for Delete Account Dialog
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -125,11 +128,7 @@ export default function SettingsPage() {
                 className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none"
                 aria-label="Toggle Dark Mode"
               >
-                {isDarkMode ? (
-                  <Sun className="h-6 w-6" />
-                ) : (
-                  <Moon className="h-6 w-6" />
-                )}
+                {isDarkMode ? <Sun className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
               </button>
               <UserDropdown />
             </div>
@@ -263,8 +262,39 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Danger Zone Card */}
+            <div className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Danger Zone</CardTitle>
+                  <CardDescription>
+                    Permanently delete your account and all associated data
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500">
+                      Once you delete your account, there is no going back. Please be certain.
+                    </p>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      Delete Account
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
+
+        {/* Delete Account Dialog */}
+        <DeleteAccountDialog 
+          isOpen={showDeleteDialog} 
+          onClose={() => setShowDeleteDialog(false)} 
+        />
       </main>
     </div>
   );
