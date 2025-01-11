@@ -43,7 +43,7 @@ export default function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDi
         const data = await response.json();
         setError(data.message || 'Failed to delete account');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

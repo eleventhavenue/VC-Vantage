@@ -1,8 +1,10 @@
+// app/api/user/delete/route.ts
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 
-export async function DELETE(req: Request) {
+export async function DELETE() {  // Removed the unused 'req' parameter
   try {
     const session = await getServerSession();
 
