@@ -1,6 +1,4 @@
-// app/api/auth/[...nextauth]/route.ts
-
-import NextAuth from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -8,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth";
 import { getUserByEmail } from "@/lib/user";
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -41,12 +39,10 @@ const handler = NextAuth({
           throw new Error("No user found with the given email");
         }
 
-        // Check if email is verified
         if (!user.emailVerified) {
           throw new Error("Please verify your email before signing in");
         }
 
-        // Ensure user.password is a string
         if (!user.password) {
           throw new Error("No password set for this user.");
         }
@@ -75,32 +71,27 @@ const handler = NextAuth({
   },
   pages: {
     signIn: "/auth",
-    verifyRequest: '/auth/verify-request', // Add this line
-    error: '/auth/error', // Add this line
+    verifyRequest: '/auth/verify-request',
+    error: '/auth/error',
   },
   callbacks: {
     async signIn({ user, account, profile, email, credentials }) {
       console.log("signIn callback:", { user, account, profile, email, credentials });
       
-      // If using OAuth provider, consider the email as verified
       if (account?.provider !== "credentials") {
         return true;
       }
       
-      // For credentials provider, check if email is verified
       if (user.emailVerified) {
         return true;
       }
 
-      // Redirect to verify request page if email not verified
       return '/auth/verify-request';
     },
     async redirect({ url, baseUrl }) {
       console.log("redirect callback:", { url, baseUrl });
 
-      // If the URL is relative, prepend the base URL
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      // Allow relative callback URLs
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     },
@@ -123,6 +114,8 @@ const handler = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
