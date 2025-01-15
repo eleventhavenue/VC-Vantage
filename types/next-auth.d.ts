@@ -1,5 +1,3 @@
-// types/next-auth.d.ts
-
 import "next-auth";
 
 declare module "next-auth" {
@@ -10,8 +8,8 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       emailVerified?: Date | null;
+      onboardingCompleted?: boolean;  // Add this line
     };
-    hasProfile: boolean;
   }
 
   interface User {
@@ -21,16 +19,7 @@ declare module "next-auth" {
     image?: string | null;
     emailVerified?: Date | null;
     lastLogin?: Date | null;
-    Profile?: {
-      id: string;
-      role: string;
-      firmName: string;
-      firmSize: string;
-      investmentFocus: string[];
-      dealStages: string[];
-      investmentSize?: string;
-      completedAt: Date;
-    } | null;
+    onboardingCompleted?: boolean;  // Optionally add this to user type
   }
 }
 
@@ -39,6 +28,6 @@ declare module "next-auth/jwt" {
     id: string;
     email?: string | null;
     emailVerified?: Date | null;
-    hasProfile?: boolean;
+    onboardingCompleted?: boolean;  // Add to JWT
   }
 }

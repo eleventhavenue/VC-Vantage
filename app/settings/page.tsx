@@ -27,23 +27,18 @@ import {
   Sun,
 } from 'lucide-react';
 import UserDropdown from '@/components/UserDropdown';
-import DeleteAccountDialog from '@/components/DeleteAccountDialog';  // New import for delete dialog
+import DeleteAccountDialog from '@/components/DeleteAccountDialog';
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Dark mode state
+  // Dark mode and dialog states
   const [isDarkMode, setIsDarkMode] = useState(false);
-  // State for Delete Account Dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Toggle dark mode
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
+  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-  // Apply dark mode class to <html> element
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -54,15 +49,14 @@ export default function SettingsPage() {
     }
   }, [isDarkMode]);
 
-  // Load dark mode preference on initial render
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme');
     setIsDarkMode(storedTheme === 'dark');
   }, []);
 
   useEffect(() => {
-    if (status === 'loading') return; // Do nothing while loading
-    if (!session) signIn(); // Redirect to sign-in if not authenticated
+    if (status === 'loading') return;
+    if (!session) signIn();
   }, [session, status, router]);
 
   if (status === 'loading') {
@@ -73,9 +67,7 @@ export default function SettingsPage() {
     );
   }
 
-  if (!session) {
-    return null; // Prevent flash of unauthenticated content
-  }
+  if (!session) return null;
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -84,30 +76,19 @@ export default function SettingsPage() {
         <div className="p-4">
           <Link href="/" className="flex items-center space-x-2">
             <MountainIcon className="h-6 w-6 text-blue-500" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
-              VC Vantage
-            </span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">VC Vantage</span>
           </Link>
         </div>
         <nav className="mt-6">
-          <Link
-            href="/search"
-            className="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
+          <Link href="/search" className="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
             <Search className="h-5 w-5 mr-3" />
             Search
           </Link>
-          <Link
-            href="/reports"
-            className="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
+          <Link href="/reports" className="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
             <FileText className="h-5 w-5 mr-3" />
             Reports
           </Link>
-          <Link
-            href="/settings"
-            className="flex items-center px-4 py-2 text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900"
-          >
+          <Link href="/settings" className="flex items-center px-4 py-2 text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900">
             <Settings className="h-5 w-5 mr-3" />
             Settings
           </Link>
@@ -118,11 +99,8 @@ export default function SettingsPage() {
       <main className="flex-1 overflow-y-auto">
         <header className="bg-white dark:bg-gray-800 shadow-sm">
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              Settings
-            </h1>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Settings</h1>
             <div className="flex items-center space-x-4">
-              {/* Dark mode toggle button */}
               <button
                 onClick={toggleDarkMode}
                 className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none"
@@ -142,9 +120,7 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Profile Settings</CardTitle>
-                  <CardDescription>
-                    Manage your account details
-                  </CardDescription>
+                  <CardDescription>Manage your account details</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -166,7 +142,12 @@ export default function SettingsPage() {
                       className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     />
                   </div>
-                  <Button>Update Profile</Button>
+                  <div className="flex space-x-4 mt-4">
+                    <Button>Update Profile</Button>
+                    <Link href="/profile/edit">
+                      <Button variant="outline">Edit Profile</Button>
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -174,9 +155,7 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Security</CardTitle>
-                  <CardDescription>
-                    Manage your security preferences
-                  </CardDescription>
+                  <CardDescription>Manage your security preferences</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
@@ -190,7 +169,7 @@ export default function SettingsPage() {
                     </div>
                     <Switch />
                   </div>
-                  <Button variant="outline">Change Password</Button>
+                  <Button variant="outline" className="mt-4">Change Password</Button>
                 </CardContent>
               </Card>
 
@@ -198,9 +177,7 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Notifications</CardTitle>
-                  <CardDescription>
-                    Manage your notification preferences
-                  </CardDescription>
+                  <CardDescription>Manage your notification preferences</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
@@ -214,7 +191,7 @@ export default function SettingsPage() {
                     </div>
                     <Switch />
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-4">
                     <div className="space-y-1">
                       <p className="font-medium text-gray-900 dark:text-gray-100">
                         Push Notifications
@@ -232,9 +209,7 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>AI Preferences</CardTitle>
-                  <CardDescription>
-                    Customize your AI research settings
-                  </CardDescription>
+                  <CardDescription>Customize your AI research settings</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
@@ -248,7 +223,7 @@ export default function SettingsPage() {
                     </div>
                     <Switch />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 mt-4">
                     <Label htmlFor="ai-model">Preferred AI Model</Label>
                     <select
                       id="ai-model"
