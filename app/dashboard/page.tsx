@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/Card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   LineChart,
   Line,
@@ -37,8 +36,8 @@ import {
   Sun, 
   Clock, 
   AlertCircle, 
-  Crown, 
-  Loader2 
+  Crown,
+  Shield,
 } from 'lucide-react'; // Removed 'Users', 'DollarSign', 'Activity', 'Bell'
 import UserDropdown from '@/components/UserDropdown';
 
@@ -71,11 +70,9 @@ interface UsageByDate {
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
   const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
   const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
   const [usageByDate, setUsageByDate] = useState<UsageByDate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null); // Will be used later
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -102,7 +99,6 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      setIsLoading(true);
       const [historyResponse, statsResponse] = await Promise.all([
         fetch('/api/user/search-history'),
         fetch('/api/user/usage-status') // Corrected fetch URL
@@ -137,31 +133,15 @@ export default function Dashboard() {
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Searching for:', searchQuery);
-    // Implement search functionality here
-  };
+
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
-  if (status === "loading") {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  }
 
   if (!session) {
     return (
@@ -261,6 +241,12 @@ export default function Dashboard() {
                 <Button className="w-full" onClick={() => router.push('/settings')}>
                   <Settings className="mr-2 h-4 w-4" /> Adjust Settings
                 </Button>
+                {/* Conditionally render Admin Dashboard button */}
+                {session?.user?.role === 'ADMIN' && (
+                  <Button className="w-full" onClick={() => router.push('/admin')}>
+                    <Shield className="mr-2 h-4 w-4" /> Admin Dashboard
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -340,31 +326,7 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Search Bar */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Quick Search</CardTitle>
-              <CardDescription>Start your research by searching for a company or individual</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSearch}>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Enter company or individual name"
-                    className="pl-10 pr-4 py-2 w-full"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  <Button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                    Search
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
+          
           {/* Usage Trend and Recent Searches */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Card>

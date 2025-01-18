@@ -1,8 +1,10 @@
 // app/admin/page.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -19,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MountainIcon, Shield, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -36,15 +37,21 @@ interface User {
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchUsers();
+      // Check if the user has ADMIN role
+      if (session?.user?.role !== 'ADMIN') {
+        router.push('/'); // Redirect non-admins to home page
+      } else {
+        fetchUsers();
+      }
     }
-  }, [status]);
+  }, [status, session?.user?.role, router]);
 
   const fetchUsers = async () => {
     try {
@@ -80,7 +87,7 @@ export default function AdminDashboard() {
     }
   };
 
-  if (status === 'loading' || isLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
@@ -91,12 +98,13 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!session) {
+  if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Access Denied</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">You do not have permission to view this page.</p>
+          <Shield className="h-12 w-12 text-red-500 mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Error</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <Link href="/" className="text-blue-500 hover:text-blue-600">
             Return to Home
           </Link>
@@ -131,11 +139,14 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {/* Back Button */}
+        <Button 
+          variant="outline" 
+          onClick={() => router.push('/dashboard')} 
+          className="mb-4"
+        >
+          ← Back to Dashboard
+        </Button>
 
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
           <Table>
@@ -160,7 +171,7 @@ export default function AdminDashboard() {
                     <Select
                       value={user.role}
                       onValueChange={(value) => handleRoleChange(user.id, value)}
-                      disabled={user.email === session.user?.email}
+                      disabled={user.email === session!.user?.email}  
                     >
                       <SelectTrigger className="w-[130px]">
                         <SelectValue placeholder="Select role" />
@@ -191,7 +202,7 @@ export default function AdminDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        // Add additional actions as needed
+                        // Additional actions if needed
                       }}
                     >
                       View Details

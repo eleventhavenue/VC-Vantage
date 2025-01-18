@@ -108,6 +108,15 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.emailVerified = user.emailVerified;
         token.role = user.role; // Include role in the token
+      } else if(token.email && !token.role) {
+        try {
+          const existingUser = await getUserByEmail(token.email);
+          if (existingUser) {
+            token.role = existingUser.role;
+          }
+        } catch (error) {
+          console.error("Error fetching user in jwt callback:", error);
+        }
       }
       return token;
     },
@@ -116,7 +125,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.emailVerified = token.emailVerified as Date | null;
-        session.user.role = token.role as 'USER' | 'TEST_USER' | 'ADMIN'; // Include role from token
+        session.user.role = token.role as 'USER' | 'TEST_USER' | 'ADMIN'; 
       }
       return session;
     },

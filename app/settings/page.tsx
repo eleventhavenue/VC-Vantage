@@ -60,13 +60,7 @@ export default function SettingsPage() {
     if (!session) signIn();
   }, [session, status, router]);
 
-  if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Loading...
-      </div>
-    );
-  }
+ 
 
   if (!session) return null;
 
