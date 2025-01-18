@@ -6,6 +6,13 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import LRU from 'lru-cache';
 import { z } from 'zod';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/authOptions";
+import prisma from "@/lib/prisma";
+import { checkAndUpdateUsage } from '@/lib/usage-utils';
+
+// Constants
+const TRIAL_LIMIT = 5;
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -80,6 +87,36 @@ const requestSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Get user and check subscription status
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check trial usage limit
+    if (!user.isSubscribed && user.trialUsageCount >= TRIAL_LIMIT) {
+      return NextResponse.json({
+        error: 'Trial limit reached. Please subscribe to continue using VC Vantage.',
+        trialLimitReached: true,
+        usageCount: user.trialUsageCount,
+      }, { status: 402 });
+    }
+
     const body = await req.json();
     const { query, type } = requestSchema.parse(body);
     
@@ -354,6 +391,16 @@ Summarize key financial health indicators for ${sanitizedQuery}.`
       summary,
       keyQuestions,
     };
+
+    // In your search route handler:
+const usageResult = await checkAndUpdateUsage(user.id);
+if (!usageResult.canProceed) {
+  return NextResponse.json({
+    error: usageResult.error,
+    usageCount: usageResult.usageCount,
+    limit: usageResult.limit
+  }, { status: 402 });
+}
   
     cache.set(sanitizedQuery, results);
     return NextResponse.json(results);

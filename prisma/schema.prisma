@@ -9,6 +9,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  TEST_USER
+  ADMIN
+}
+
 model User {
   id              String    @id @default(uuid())
   name            String?
@@ -19,6 +25,7 @@ model User {
   password        String?
   resetToken      String?   @unique
   resetTokenExpiry DateTime?
+  role              UserRole  @default(USER)  // Add role directly to User
   accounts        Account[]
   sessions        Session[]
   reports         Report[]
@@ -30,6 +37,14 @@ model User {
   passwordAttempts   Int          @default(0)
   lockoutUntil      DateTime?     // For temporary account lockouts
   lastLogin        DateTime?
+   // New fields for trial system
+  isSubscribed      Boolean   @default(false)
+  trialUsageCount   Int       @default(0)
+  subscriptionTier  String?   // For future use with different tiers
+  subscriptionEnds  DateTime?
+    // New fields for monthly usage
+  monthlyUsageCount Int       @default(0)
+  lastUsageReset    DateTime  @default(now())
 }
 
 model Account {

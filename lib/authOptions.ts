@@ -1,4 +1,5 @@
 // lib/authOptions.ts
+
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -24,42 +25,51 @@ export const authOptions: NextAuthOptions = {
         },
       },
       async authorize(credentials) {
-        console.log("Credentials authorize called");
-        if (!credentials) {
-          throw new Error("No credentials provided");
+        try {
+          console.log("Credentials authorize called");
+          if (!credentials) {
+            throw new Error("No credentials provided");
+          }
+
+          const { email, password } = credentials;
+
+          if (!email || !password) {
+            throw new Error("Email and password are required");
+          }
+
+          const user = await getUserByEmail(email);
+          if (!user) {
+            throw new Error("No user found with the given email");
+          }
+
+          if (!user.emailVerified) {
+            throw new Error("Please verify your email before signing in");
+          }
+
+          if (!user.password) {
+            throw new Error("No password set for this user.");
+          }
+
+          const isValid = await verifyPassword(password, user.password);
+          if (!isValid) {
+            throw new Error("Invalid password");
+          }
+
+          console.log("Credentials authorize successful:", user.email);
+          
+          // Return the user object with all required fields
+          return {
+            id: user.id.toString(),
+            email: user.email,
+            name: user.name,
+            emailVerified: user.emailVerified,
+            role: user.role || 'USER', // Ensure role is included
+            image: null // Add if you have this field
+          };
+        } catch (error) {
+          console.error("Authorization error:", error);
+          return null;
         }
-
-        const { email, password } = credentials;
-
-        if (!email || !password) {
-          throw new Error("Email and password are required");
-        }
-
-        const user = await getUserByEmail(email);
-        if (!user) {
-          throw new Error("No user found with the given email");
-        }
-
-        if (!user.emailVerified) {
-          throw new Error("Please verify your email before signing in");
-        }
-
-        if (!user.password) {
-          throw new Error("No password set for this user.");
-        }
-
-        const isValid = await verifyPassword(password, user.password);
-        if (!isValid) {
-          throw new Error("Invalid password");
-        }
-
-        console.log("Credentials authorize successful:", user.email);
-        return { 
-          id: user.id.toString(), 
-          email: user.email,
-          emailVerified: user.emailVerified,
-          name: user.name
-        };
       },
     }),
     GoogleProvider({
@@ -92,23 +102,25 @@ export const authOptions: NextAuthOptions = {
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     },
-    async jwt({ token, user, account, profile, isNewUser }) {
-      console.log("jwt callback:", { token, user, account, profile, isNewUser });
+    async jwt({ token, user }) {
+      console.log("jwt callback:", { token, user });
       if (user) {
         token.id = user.id;
         token.emailVerified = user.emailVerified;
+        token.role = user.role; // Include role in the token
       }
       return token;
     },
-    async session({ session, token, user }) {
-      console.log("session callback:", { session, token, user });
+    async session({ session, token }) {
+      console.log("session callback:", { session, token });
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.emailVerified = token.emailVerified as Date | null;
+        session.user.role = token.role as 'USER' | 'TEST_USER' | 'ADMIN'; // Include role from token
       }
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-};
+}
