@@ -121,7 +121,18 @@ export default function AuthPage() {
         router.push('/auth/verify-request');
       }
 
-      
+      // Automatically sign in after successful registration
+      const signInRes = await signIn("credentials", {
+        redirect: false,
+        email: registerEmail,
+        password: registerPassword,
+      });
+
+      if (signInRes?.error) {
+        setError(signInRes.error);
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err) {
       setError('An unexpected error occurred.');
       console.error('Frontend Registration Error:', err);
