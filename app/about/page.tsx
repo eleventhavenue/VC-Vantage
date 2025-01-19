@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation'
 export default function AboutPage() {
   const router = useRouter();
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen flex flex-col">
       <header className="px-4 lg:px-6 h-14 flex items-center">
         <Link className="flex items-center justify-center" href="/">
           <MountainIcon className="h-6 w-6 text-blue-500" />

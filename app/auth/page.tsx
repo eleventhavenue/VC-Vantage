@@ -42,7 +42,7 @@ export default function AuthPage() {
   // Effects
   useEffect(() => {
     if (status === "authenticated") {
-      router.push('/search');
+      router.push('/dashboard');
     }
   }, [status, router]);
 
@@ -71,7 +71,7 @@ export default function AuthPage() {
       if (res?.error) {
         setError(res.error);
       } else {
-        router.push('/search');
+        router.push('/dashbaord');
       }
     } catch (err) {
       setError('An unexpected error occurred.');
@@ -116,6 +116,9 @@ export default function AuthPage() {
         console.error('Registration API Error:', data);
         setError(data.message || 'Something went wrong.');
         return;
+      }else {
+        // Instead of auto sign-in, navigate to a page that instructs user to verify their email
+        router.push('/auth/verify-request');
       }
 
       // Automatically sign in after successful registration
@@ -128,7 +131,7 @@ export default function AuthPage() {
       if (signInRes?.error) {
         setError(signInRes.error);
       } else {
-        router.push('/search');
+        router.push('/dashboard');
       }
     } catch (err) {
       setError('An unexpected error occurred.');
@@ -275,7 +278,7 @@ export default function AuthPage() {
                 <Button 
                   variant="outline" 
                   className="w-full flex items-center justify-center" 
-                  onClick={() => signIn('google', { callbackUrl: '/search' })}
+                  onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
                 >
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path d="M21.35 11.1h-9.17v2.95h5.44c-.24 1.27-1.3 3.69-5.44 3.69-3.27 0-5.94-2.66-5.94-5.94s2.67-5.94 5.94-5.94c1.94 0 3.24.82 3.99 1.52l2.73-2.64C16.52 3.09 14.04 2 11.35 2c-5.33 0-9.7 4.37-9.7 9.7s4.37 9.7 9.7 9.7c5.16 0 8.89-3.48 9.59-8.11l-9.59-.01z"/>
