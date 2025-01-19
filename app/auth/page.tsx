@@ -71,7 +71,7 @@ export default function AuthPage() {
       if (res?.error) {
         setError(res.error);
       } else {
-        router.push('/dashbaord');
+        router.push('/dashboard');
       }
     } catch (err) {
       setError('An unexpected error occurred.');
