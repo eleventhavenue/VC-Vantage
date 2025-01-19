@@ -1,3 +1,7 @@
+//app/contact/page.tsx
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card"
@@ -6,6 +10,38 @@ import { Textarea } from "@/components/ui/textarea"
 import { MountainIcon, Mail, Phone, MapPin } from 'lucide-react'
 
 export default function ContactPage() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setStatusMsg(null);
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setStatusMsg('Your message has been sent.');
+        setName('');
+        setEmail('');
+        setMessage('');
+      } else {
+        setStatusMsg(`Error: ${data.error || 'Failed to send message.'}`);
+      }
+    } catch {
+      setStatusMsg('An unexpected error occurred.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <header className="px-4 lg:px-6 h-14 flex items-center">
@@ -43,20 +79,46 @@ export default function ContactPage() {
                   <CardTitle>Send us a message</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <form className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <label htmlFor="name">Name</label>
-                      <Input id="name" placeholder="Your name" required />
+                      <Input
+                        id="name"
+                        placeholder="Your name"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="email">Email</label>
-                      <Input id="email" placeholder="Your email" required type="email" />
+                      <Input
+                        id="email"
+                        placeholder="Your email"
+                        required
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="message">Message</label>
-                      <Textarea id="message" placeholder="Your message" required />
+                      <Textarea
+                        id="message"
+                        placeholder="Your message"
+                        required
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                      />
                     </div>
-                    <Button type="submit" className="w-full">Send Message</Button>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? 'Sending...' : 'Send Message'}
+                    </Button>
+                    {statusMsg && (
+                      <p className="mt-4 text-center text-sm text-gray-600">
+                        {statusMsg}
+                      </p>
+                    )}
                   </form>
                 </CardContent>
               </Card>
@@ -67,15 +129,15 @@ export default function ContactPage() {
                 <CardContent >
                   <div className="flex items-center">
                     <Mail className="h-5 w-5 text-blue-500 mr-2" />
-                    <p>support@vcvantage.com</p>
+                    <p>support@vc-vantage.com</p>
                   </div>
                   <div className="flex items-center">
                     <Phone className="h-5 w-5 text-blue-500 mr-2" />
-                    <p>+1 (555) 123-4567</p>
+                    <p>+1 (289) 500-7662</p>
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-5 w-5 text-blue-500 mr-2" />
-                    <p>123 VC Street, San Francisco, CA 94105</p>
+                    <p>Montreal, Canada</p>
                   </div>
                 </CardContent>
               </Card>

@@ -1,9 +1,41 @@
-import Link from 'next/link'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/Card"
-import { MountainIcon, Check } from "lucide-react"
+// app/pricing/page.tsx
+'use client';
+
+import Link from 'next/link';
+import { loadStripe } from '@stripe/stripe-js';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/Card";
+import { MountainIcon, Check } from "lucide-react";
+import { useRouter } from 'next/navigation';
+
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+// Function to handle subscription via Stripe Checkout
+const handleSubscribe = async (priceId: string) => {
+  const stripe = await stripePromise;
+  try {
+    const res = await fetch('/api/checkout/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId }),
+    });
+    const { sessionId, error } = await res.json();
+    if (error) {
+      console.error(error);
+      return;
+    }
+    if (stripe) {
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+      if (error) console.error(error);
+    }
+  } catch (err) {
+    console.error('Checkout error:', err);
+  }
+};
 
 export default function PricingPage() {
+  const router = useRouter();
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <header className="px-4 lg:px-6 h-14 flex items-center">
@@ -33,15 +65,16 @@ export default function PricingPage() {
               Simple, Transparent Pricing
             </h1>
             <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl/relaxed text-center mb-12">
-              Choose the plan that best fits your needs. All plans include a 14-day free trial.
+              Choose the plan that best fits your needs. All plans include a 5-uses free trial.
             </p>
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-12">
+              {/* Free Trial Plan */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Starter</CardTitle>
+                  <CardTitle>Free Trial</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">$99/month</p>
+                  <p className="text-3xl font-bold">Free</p>
                   <ul className="mt-4 space-y-2">
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
@@ -53,20 +86,23 @@ export default function PricingPage() {
                     </li>
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
-                      Up to 50 searches per month
+                      Up to 5 free searches
                     </li>
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full">Start Free Trial</Button>
+                  <Button className="w-full" onClick={() => router.push('/auth?signup=true')}>
+                    Start Free Trial
+                  </Button>
                 </CardFooter>
               </Card>
+              {/* Professional Plan */}
               <Card>
                 <CardHeader>
                   <CardTitle>Professional</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">$299/month</p>
+                  <p className="text-3xl font-bold">$59.99/month</p>
                   <ul className="mt-4 space-y-2">
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
@@ -78,7 +114,7 @@ export default function PricingPage() {
                     </li>
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
-                      Unlimited searches
+                      Up to 30 searches per month
                     </li>
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
@@ -87,15 +123,18 @@ export default function PricingPage() {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full">Start Free Trial</Button>
+                  <Button className="w-full" onClick={() => handleSubscribe('price_1Qik5YIYuuFWBe7KWH3898Es')}>
+                    Start Free Trial
+                  </Button>
                 </CardFooter>
               </Card>
+              {/* Business Plan - Coming Soon */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Enterprise</CardTitle>
+                  <CardTitle>Business</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">Custom</p>
+                  <p className="text-3xl font-bold">Coming Soon</p>
                   <ul className="mt-4 space-y-2">
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
@@ -103,20 +142,18 @@ export default function PricingPage() {
                     </li>
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
-                      Dedicated account manager
+                      Multi-user workspace
                     </li>
                     <li className="flex items-center">
                       <Check className="mr-2 h-4 w-4 text-green-500" />
-                      Custom integrations
-                    </li>
-                    <li className="flex items-center">
-                      <Check className="mr-2 h-4 w-4 text-green-500" />
-                      Priority support
+                      Advanced collaboration tools
                     </li>
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full">Contact Sales</Button>
+                  <Button className="w-full" disabled>
+                    Contact Sales
+                  </Button>
                 </CardFooter>
               </Card>
             </div>
@@ -135,5 +172,5 @@ export default function PricingPage() {
         </nav>
       </footer>
     </div>
-  )
+  );
 }

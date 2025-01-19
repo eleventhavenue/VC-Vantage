@@ -1,9 +1,14 @@
+// app/features/page.tsx
+'use client';
+
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card"
 import { MountainIcon, Zap, LineChart, Search, BarChart3, Briefcase, ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation';
 
 export default function FeaturesPage() {
+  const router = useRouter();
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <header className="px-4 lg:px-6 h-14 flex items-center">
@@ -114,7 +119,7 @@ export default function FeaturesPage() {
               Join the future of venture capital research. Sign up now for a free trial and experience the power of VC Vantage.
             </p>
             <div className="flex justify-center">
-              <Button size="lg">
+              <Button size="lg" onClick={() => router.push('/auth?signup=true')}>
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

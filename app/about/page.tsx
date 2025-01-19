@@ -1,9 +1,14 @@
+// app/about/page.tsx
+'use client';
+
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card"
 import { MountainIcon, Users, Lightbulb, Target } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 export default function AboutPage() {
+  const router = useRouter();
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <header className="px-4 lg:px-6 h-14 flex items-center">
@@ -81,7 +86,9 @@ export default function AboutPage() {
               Experience the future of venture capital research. Start your free trial today and see the difference for yourself.
             </p>
             <div className="flex justify-center">
-              <Button size="lg">Start Free Trial</Button>
+            <Button className="w-full" onClick={() => router.push('/auth?signup=true')}>
+                    Start Free Trial
+                  </Button>
             </div>
           </div>
         </section>
