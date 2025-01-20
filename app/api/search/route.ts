@@ -141,10 +141,23 @@ export async function POST(req: Request) {
 
     // If disambiguation is requested, perform preliminary lookup
     if (disambiguate) {
-      const disambiguationPrompt = `List the top 3 distinct possible matches for a ${type} named "${sanitizedQuery}" considering the context "${context?.company || ''} ${context?.title || ''}".`;
-      const suggestions = await analyzeWithO1(disambiguationPrompt);
-      return NextResponse.json({ suggestions });
+      const disambiguationPrompt = `List the top 3 distinct possible matches for a ${type} ...`;
+      const rawString = await analyzeWithO1(disambiguationPrompt);
+    
+      // Convert the raw string into an array of suggestions
+      // e.g., your LLM might return something like:
+      // "1. John Doe\n2. Jonny Doe\n3. John A. Doe"
+      // Then we split on new lines or number patterns.
+    
+      const arraySuggestions = rawString
+        .split('\n')           // split lines
+        .map((line) => line.replace(/^\d+\.\s*/, '').trim()) // remove "1. " prefix
+        .filter(Boolean);      // remove empty lines
+    
+      // Now arraySuggestions is something like: ["John Doe", "Jonny Doe", "John A. Doe"]
+      return NextResponse.json({ suggestions: arraySuggestions });
     }
+    
 
     // Use a combined cache key including type and refinedQuery
     const cacheKey = `${type}:${refinedQuery}`;
