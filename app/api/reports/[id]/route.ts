@@ -7,10 +7,10 @@ import { authOptions } from '@/lib/authOptions';
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
