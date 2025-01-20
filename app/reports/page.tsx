@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import React, { Suspense } from 'react';
-import ReportsClientComponent from './ReportsClientComponent';
+import ReportsList from './ReportsList'; // Updated import
 import Spinner from '@/components/ui/Spinner';
 
 export default function ReportsPage() {
@@ -15,7 +15,7 @@ export default function ReportsPage() {
         </div>
       }
     >
-      <ReportsClientComponent />
+      <ReportsList />
     </Suspense>
   );
 }
