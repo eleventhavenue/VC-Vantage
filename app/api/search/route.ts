@@ -141,22 +141,31 @@ export async function POST(req: Request) {
 
     // If disambiguation is requested, perform preliminary lookup
     if (disambiguate) {
-      const disambiguationPrompt = `List the top 3 distinct possible matches for a ${type} ...`;
+      const disambiguationPrompt = `
+    You are a strict and concise assistant. We have a person named "${sanitizedQuery}".
+    We also have optional context: Company = "${context?.company || ""}", Title = "${context?.title || ""}".
+    Please return up to 3 distinct individuals (by name or identifying info) who match or might be confused with this name/context.
+    Respond in a short, plain-text list format like:
+    1. ...
+    2. ...
+    3. ...
+    No disclaimers or extra text. Just the list of possible matches.
+    If no strong matches, return fewer items or an empty list.
+    `;
+    
       const rawString = await analyzeWithO1(disambiguationPrompt);
     
-      // Convert the raw string into an array of suggestions
-      // e.g., your LLM might return something like:
-      // "1. John Doe\n2. Jonny Doe\n3. John A. Doe"
-      // Then we split on new lines or number patterns.
+      // Parse the AI's response into an array
+      // e.g. "1. John Doe\n2. John C. Doe\n3. Jonathan Doe"
+      // We'll do a simple split on new lines or numbered lines:
+      const lines = rawString
+        .split('\n')
+        .map(l => l.replace(/^\d+\.\s*/, '').trim()) // remove "1. " prefix
+        .filter(Boolean); // remove empty lines
     
-      const arraySuggestions = rawString
-        .split('\n')           // split lines
-        .map((line) => line.replace(/^\d+\.\s*/, '').trim()) // remove "1. " prefix
-        .filter(Boolean);      // remove empty lines
-    
-      // Now arraySuggestions is something like: ["John Doe", "Jonny Doe", "John A. Doe"]
-      return NextResponse.json({ suggestions: arraySuggestions });
+      return NextResponse.json({ suggestions: lines });
     }
+    
     
 
     // Use a combined cache key including type and refinedQuery
