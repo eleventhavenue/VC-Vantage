@@ -11,12 +11,24 @@ import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
 import { checkAndUpdateUsage } from '@/lib/usage-utils';
 
-function canProceedWithUsage(user: { isSubscribed: boolean; trialUsageCount: number }): boolean {
-  return user.isSubscribed || user.trialUsageCount < TRIAL_LIMIT;
+function canProceedWithUsage(user: {
+  isSubscribed: boolean;
+  trialUsageCount: number;
+  monthlyUsageCount: number;
+}): boolean {
+  if (user.isSubscribed) {
+    // For paying users, compare monthlyUsageCount to your monthly limit
+    return user.monthlyUsageCount < MONTHLY_LIMIT;
+  } else {
+    // For trial users, compare trialUsageCount to the 5-use limit
+    return user.trialUsageCount < TRIAL_LIMIT;
+  }
 }
+
 
 // Constants
 const TRIAL_LIMIT = 5;
+const MONTHLY_LIMIT = 30;
 
 // Initialize OpenAI
 const openai = new OpenAI({
