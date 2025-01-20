@@ -1,22 +1,22 @@
 // app/api/reports/[id]/route.ts
-
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 
 export async function GET(
-  request: Request,
-  // Use a generic 'params' object with string values
-  // rather than custom interface or 'any'
-  { params }: { params: Record<string, string> }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -29,11 +29,16 @@ export async function GET(
 
     const report = await prisma.report.findUnique({
       where: { id },
-      include: { feedbacks: true },
+      include: {
+        feedbacks: true,
+      },
     });
 
     if (!report || report.userId !== user.id) {
-      return NextResponse.json({ error: 'Report not found or does not belong to the user.' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Report not found or does not belong to the user.' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(report, { status: 200 });
