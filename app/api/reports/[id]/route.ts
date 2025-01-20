@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/authOptions';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Record<string, string> }
 ) {
   const { id } = params;
 
