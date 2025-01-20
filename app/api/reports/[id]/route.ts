@@ -1,15 +1,17 @@
 // app/api/reports/[id]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Record<string, string> }
-) {
-  const { id } = params;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: NextRequest, context: any) {
+  // Safely handle the possibility that `context.params` might not exist
+  const { id } = context.params ?? {};
+
+  if (!id || typeof id !== 'string') {
+    return NextResponse.json({ error: 'Invalid or missing report id.' }, { status: 400 });
+  }
 
   try {
     const session = await getServerSession(authOptions);
@@ -43,9 +45,6 @@ export async function GET(
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json(
-      { error: 'An unknown error occurred.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'An unknown error occurred.' }, { status: 500 });
   }
 }
