@@ -5,16 +5,14 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 
-// Define a custom type for the route context
-type RouteContext = {
-  params: {
-    id: string;
-  };
-};
-
-export async function GET(req: Request, context: RouteContext) {
+export async function GET(
+  request: Request,
+  // Use a generic 'params' object with string values
+  // rather than custom interface or 'any'
+  { params }: { params: Record<string, string> }
+) {
   try {
-    const { id } = context.params;
+    const { id } = params;
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
