@@ -1,4 +1,5 @@
 // app/api/reports/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
@@ -24,14 +25,15 @@ export async function GET(
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
     }
 
     const report = await prisma.report.findUnique({
       where: { id },
-      include: {
-        feedbacks: true,
-      },
+      include: { feedbacks: true },
     });
 
     if (!report || report.userId !== user.id) {
@@ -47,6 +49,9 @@ export async function GET(
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: 'An unknown error occurred.' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'An unknown error occurred.' },
+      { status: 500 }
+    );
   }
 }
