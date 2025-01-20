@@ -1,23 +1,26 @@
 // app/api/reports/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { RouteHandlerContext } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+// 1. Define a custom interface that extends `RouteHandlerContext`
+interface ReportsContext extends RouteHandlerContext {
+  params: {
+    id: string; // Matches your `[id]` segment
+  };
+}
+
+// 2. Use that interface in the second argument
+export async function GET(req: NextRequest, { params }: ReportsContext) {
   try {
-    const { id } = context.params;
+    const { id } = params;
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -25,10 +28,7 @@ export async function GET(
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const report = await prisma.report.findUnique({
@@ -49,9 +49,6 @@ export async function GET(
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json(
-      { error: 'An unknown error occurred.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'An unknown error occurred.' }, { status: 500 });
   }
 }
