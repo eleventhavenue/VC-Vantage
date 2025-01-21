@@ -74,11 +74,14 @@ interface IProxycurlProfile {
   [key: string]: unknown; // fallback
 }
 
-// A small helper to call your fetchLinkedInProfile route
+// GET from environment or default to localhost
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+
+// FIX: Use an absolute URL so Node server can parse it
 async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfile | null> {
-  const res = await fetch(
-    `/api/fetchLinkedInProfile?linkedinProfileUrl=${encodeURIComponent(linkedinUrl)}`
-  );
+  const absoluteUrl = `${BASE_URL}/api/fetchLinkedInProfile?linkedinProfileUrl=${encodeURIComponent(linkedinUrl)}`;
+
+  const res = await fetch(absoluteUrl);
   if (!res.ok) {
     console.error('Proxycurl call failed:', await res.text());
     return null;
