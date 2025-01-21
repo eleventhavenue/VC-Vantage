@@ -1,6 +1,6 @@
 // app/api/search/route.ts
 
-export const maxDuration = 300; // Increased to 5 minutes
+export const maxDuration = 300; // 5 minutes
 
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
@@ -11,7 +11,9 @@ import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
 import { checkAndUpdateUsage } from '@/lib/usage-utils';
 
-// Some usage-check function
+/* -------------------- 
+   USAGE & CONSTANTS
+-------------------- */
 function canProceedWithUsage(user: {
   isSubscribed: boolean;
   trialUsageCount: number;
@@ -23,10 +25,12 @@ function canProceedWithUsage(user: {
     return user.trialUsageCount < TRIAL_LIMIT;
   }
 }
-
 const TRIAL_LIMIT = 5;
 const MONTHLY_LIMIT = 30;
 
+/* --------------------
+   OPENAI + UTILS
+-------------------- */
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
@@ -35,6 +39,9 @@ function removeCitations(text: string): string {
   return text.replace(/\[\d+\]/g, '');
 }
 
+/* --------------------
+   INTERFACES
+-------------------- */
 interface AnalysisResults {
   overview: string;
   marketAnalysis: string;
@@ -44,6 +51,7 @@ interface AnalysisResults {
   keyQuestions: string[];
 }
 
+// For typed prompts
 interface IPromptsSet {
   overview: string;
   market: string;
@@ -51,7 +59,7 @@ interface IPromptsSet {
 }
 type PersonOrCompany = 'people' | 'company';
 
-// *** NEW: Define interfaces to avoid 'any' ***
+// Date objects for experiences
 interface IDateObject {
   day?: number;
   month?: number;
@@ -65,7 +73,6 @@ interface IExperience {
   company?: string;
   description?: string;
   location?: string;
-  // add any other fields from Proxycurl if needed
 }
 
 interface IEducation {
@@ -75,40 +82,108 @@ interface IEducation {
   field_of_study?: string;
   school?: string;
   description?: string;
-  // add any other fields from Proxycurl
 }
 
 interface IProxycurlProfile {
   full_name?: string;
-  occupation?: string;
-  headline?: string;
   summary?: string;
   experiences?: IExperience[];
   education?: IEducation[];
+  occupation?: string;
+  headline?: string;
   city?: string;
   state?: string;
   country_full_name?: string;
   connections?: number;
-  // fallback
+  // fallback for extra fields
   [key: string]: unknown;
 }
 
-// LRU Cache
+/* --------------------
+   LRU CACHE
+-------------------- */
 const cache = new LRU<string, AnalysisResults>({
   max: 500,
-  ttl: 1000 * 60 * 60,
+  ttl: 1000 * 60 * 60, // 1 hour
 });
 
-// formatLinkedInData with typed arrays
+/* --------------------
+   PARSING & FORMATTING 
+-------------------- */
+// Basic domain detection
+const WEBSITE_REGEX = /\b((https?:\/\/)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\S*))/gi;
+// Exclude well-known social media domains
+const EXCLUDED_DOMAINS = [
+  'linkedin.com',
+  'facebook.com',
+  'instagram.com',
+  'twitter.com',
+  'youtube.com',
+  'tiktok.com'
+];
+
+function cleanupDomain(raw: string): string {
+  let domain = raw.trim();
+  domain = domain.replace(/^https?:\/\//i, '');
+  domain = domain.replace(/\/+$/, '');
+  domain = domain.replace(/^www\./i, '');
+  return domain;
+}
+function isExcludedDomain(domain: string): boolean {
+  return EXCLUDED_DOMAINS.some((excluded) => domain.includes(excluded));
+}
+
+/**
+ * Extract only relevant custom domains from the user's LinkedIn data.
+ * We skip well-known social sites to focus on actual company/portfolio domains.
+ */
+function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[] {
+  const foundSites = new Set<string>();
+
+  // 1) Scan summary
+  if (profile.summary) {
+    const matches = profile.summary.match(WEBSITE_REGEX);
+    if (matches) {
+      for (const m of matches) {
+        const domain = cleanupDomain(m);
+        if (!isExcludedDomain(domain)) {
+          foundSites.add(domain);
+        }
+      }
+    }
+  }
+  // 2) Scan experiences[].description
+  if (profile.experiences) {
+    for (const exp of profile.experiences) {
+      if (exp.description) {
+        const matches = exp.description.match(WEBSITE_REGEX);
+        if (matches) {
+          for (const m of matches) {
+            const domain = cleanupDomain(m);
+            if (!isExcludedDomain(domain)) {
+              foundSites.add(domain);
+            }
+          }
+        }
+      }
+    }
+  }
+  return Array.from(foundSites);
+}
+
+/**
+ * Convert Proxycurl JSON to a readable snippet for Perplexity
+ */
 function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
   if (!profile || Object.keys(profile).length === 0) {
     return `No official LinkedIn data found for ${name}. Proceed carefully.`;
   }
 
+  // Build experiences text
   let experiencesText = '';
   if (Array.isArray(profile.experiences)) {
     experiencesText = profile.experiences
-      .map((exp: IExperience) => {
+      .map((exp) => {
         const startYear = exp.starts_at?.year ?? 'N/A';
         const endYear = exp.ends_at?.year ?? 'Present';
         const role = exp.title ?? 'Unknown Role';
@@ -119,10 +194,11 @@ function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
       .join('\n\n');
   }
 
+  // Build education text
   let educationText = '';
   if (Array.isArray(profile.education)) {
     educationText = profile.education
-      .map((edu: IEducation) => {
+      .map((edu) => {
         const startYear = edu.starts_at?.year ?? 'N/A';
         const endYear = edu.ends_at?.year ?? 'N/A';
         const degree = edu.degree_name ?? 'N/A';
@@ -159,9 +235,15 @@ NOTE: If conflicting data appears elsewhere, disregard it and trust this verifie
 `.trim();
 }
 
-// Base URL for server-side fetch
+/* --------------------
+   API CALLS
+-------------------- */
+
 const BASE_URL = process.env.BASE_URL || 'https://www.vc-vantage.com';
 
+/**
+ * fetchProxycurlData: get the person's LinkedIn data from your local fetchLinkedInProfile route
+ */
 async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfile | null> {
   const absoluteUrl = `${BASE_URL}/api/fetchLinkedInProfile?linkedinProfileUrl=${encodeURIComponent(linkedinUrl)}`;
   const res = await fetch(absoluteUrl);
@@ -172,6 +254,9 @@ async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfil
   return (await res.json()) as IProxycurlProfile;
 }
 
+/**
+ * fetchFromPerplexity: call the Perplexity API with a textual prompt
+ */
 async function fetchFromPerplexity(prompt: string): Promise<string> {
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
@@ -196,6 +281,9 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   return content;
 }
 
+/**
+ * analyzeWithO1: call your custom 'o1-mini' model (OpenAI) with a textual prompt
+ */
 async function analyzeWithO1(prompt: string): Promise<string> {
   const response = await openai.chat.completions.create({
     model: 'o1-mini',
@@ -208,6 +296,9 @@ async function analyzeWithO1(prompt: string): Promise<string> {
   return response.choices[0].message.content.trim();
 }
 
+/* --------------------
+   ZOD SCHEMA & ROUTE
+-------------------- */
 const requestSchema = z.object({
   query: z.string().min(1).max(500),
   type: z.enum(['people', 'company']),
@@ -223,6 +314,7 @@ const requestSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    // 1) Check session
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -232,6 +324,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // 2) Usage check
     if (!canProceedWithUsage(user)) {
       return NextResponse.json(
         {
@@ -243,18 +336,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // 3) Parse
     const body = await req.json();
     const { query, type, context, disambiguate } = requestSchema.parse(body);
-
-    if (!query?.trim()) {
+    const sanitizedQuery = query.trim();
+    if (!sanitizedQuery) {
       return NextResponse.json({ error: 'Query is required.' }, { status: 400 });
     }
-
-    const sanitizedQuery = query.trim();
     let refinedQuery = sanitizedQuery;
     if (context?.company) refinedQuery += ` at ${context.company}`;
     if (context?.title) refinedQuery += `, ${context.title}`;
 
+    // 4) Disambiguation
     if (disambiguate) {
       const disambiguationPrompt = `
 You are a strict and concise assistant. We have a person named "${sanitizedQuery}".
@@ -275,20 +368,54 @@ If no strong matches, return fewer items or an empty list.
       return NextResponse.json({ suggestions: lines });
     }
 
+    // 5) Cache check
     const cacheKey = `${type}:${refinedQuery}`;
     if (cache.has(cacheKey)) {
       console.log('Cache hit for key:', cacheKey);
       return NextResponse.json(cache.get(cacheKey));
     }
 
+    // 6) If people & we have a linkedinUrl, fetch from Proxycurl
     let linkedInJSON: IProxycurlProfile | null = null;
     if (type === 'people' && context?.linkedinUrl) {
       linkedInJSON = await fetchProxycurlData(context.linkedinUrl);
     }
 
+    // 7) Format snippet
     const officialLinkedInData = formatLinkedInData(linkedInJSON || {}, refinedQuery);
 
-    // Base prompts
+    // 8) Extract custom domains from that profile
+    let siteExpansionsText = '';
+    if (linkedInJSON) {
+      const relevantSites = extractRelevantWebsitesFromProfile(linkedInJSON);
+      if (relevantSites.length > 0) {
+        // Potentially fetch expansions from Perplexity for each domain
+        const expansions: string[] = [];
+        for (const domain of relevantSites) {
+          // Build a short prompt to ask Perplexity about the domain
+          const sitePrompt = `
+We have discovered a domain: "${domain}"
+It is associated with ${refinedQuery}'s background from LinkedIn. 
+Please summarize any relevant info about this site or company, focusing on consistency with the LinkedIn snippet. 
+Ignore unrelated references.
+          `;
+          const expansion = await fetchFromPerplexity(sitePrompt);
+          expansions.push(`Domain: ${domain}\n${expansion}`);
+        }
+        siteExpansionsText = expansions.join('\n\n');
+      }
+    }
+
+    // 9) Merge the snippet + site expansions into an "overview" block
+    const combinedSnippet = `
+[OFFICIAL LINKEDIN SNIPPET]
+${officialLinkedInData}
+
+[ADDITIONAL DOMAIN EXPANSIONS]
+${siteExpansionsText || 'No custom domains or expansions found.'}
+`.trim();
+
+    // 10) Define base prompts
     const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
       people: {
         overview: `# Results for: ${refinedQuery}
@@ -296,33 +423,20 @@ If no strong matches, return fewer items or an empty list.
 ## Overview
 
 ### Task
-Provide a well-structured overview of ${refinedQuery}'s professional background, industry focus, market involvement, and any notable achievements or activities.
-Focus on:
-1. Their core area of expertise or leadership
-2. Notable career milestones
-3. Any current roles or leadership positions
-4. Recent developments or contributions in their field
+Provide a well-structured overview of ${refinedQuery}'s professional background, 
+focusing on key roles, achievements, and any relevant background info. 
 `,
         market: `## Market Analysis
 
 ### Task
-Analyze the market and competitive landscape relevant to ${refinedQuery}'s domain.
-Include:
-1. The sector(s) ${refinedQuery} operates in
-2. Key competitors or industry peers
-3. Emerging trends that could affect ${refinedQuery}'s position
-4. Potential opportunities and threats
+Analyze the market environment relevant to ${refinedQuery}, 
+discussing competition, trends, and potential opportunities or threats.
 `,
         financial: `## Financial Analysis
 
 ### Task
-If ${refinedQuery} is linked with a startup or investment entity, explore any financial or funding aspects.
-Focus on:
-1. Funding history (if applicable)
-2. Revenue streams and profitability
-3. Known investors or relevant fundraising rounds
-4. Risks or financial challenges
-5. Overall financial positioning
+If ${refinedQuery} is linked with a startup or funding, 
+explore known financial aspects, funding rounds, or potential challenges.
 `,
       },
       company: {
@@ -362,83 +476,71 @@ Include:
       },
     };
 
-    // Merge the official snippet into the overview prompt
+    // 11) Build final overview prompt with snippet
     const overviewPrompt = `
 [IMPORTANT] Use the official data below as primary truth about ${refinedQuery}.
-Ignore any conflicting references.
+Ignore conflicting references.
 
-${officialLinkedInData}
+${combinedSnippet}
 
 ${basePrompts[type].overview}
 `;
 
+    // 12) Market & Financial prompts
     const marketPrompt = basePrompts[type].market;
     const financialPrompt = basePrompts[type].financial;
 
-    // fetch from Perplexity
+    // 13) fetch from Perplexity
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
       fetchFromPerplexity(overviewPrompt),
       fetchFromPerplexity(marketPrompt),
       fetchFromPerplexity(financialPrompt),
     ]);
 
-    // Pattern recognition
-    const patternAnalysisPrompt = `Analyze the following verified information about ${refinedQuery}:
+    // 14) Pattern recognition
+    const patternAnalysisPrompt = `
+Analyze the following verified information about ${refinedQuery}:
 ${overview}
 ${marketAnalysis}
 ${financialAnalysis}
 
 ### Task
-1. Identify non-obvious patterns, relationships, and interdependencies.
-2. Find hidden risks or opportunities that might not be immediately apparent.
-3. Assess how market position, financial status, and strategic decisions interrelate.
-4. Evaluate the sustainability of competitive advantages.
-5. Gauge how ${refinedQuery}'s leadership or strategy aligns with broader market trends.
-
+1. Identify non-obvious patterns, relationships, or hidden risks/opportunities.
+2. Assess how everything interrelates.
 Focus on generating insights without merely restating the above.
-`;
+`.trim();
 
     const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
 
-    // Strategic analysis
-    const strategicAnalysisPrompt = `Based on the verified information and the following pattern analysis for ${refinedQuery}:
+    // 15) Strategic analysis
+    const strategicAnalysisPrompt = `
+Based on the verified information and pattern analysis for ${refinedQuery}:
 ${patternAnalysis}
 
 ### Task
-Provide a comprehensive strategic analysis that covers:
-1. Leadership impact: Evaluate the effectiveness of strategic decisions, execution quality, and vision alignment with market opportunities.
-2. Growth trajectory: Assess scalability, innovation potential, potential market expansion paths, and competitive durability.
-3. Risk-opportunity matrix: Identify strategic risks, market opportunities, execution challenges, and growth catalysts.
-
-Offer specific, actionable insights rather than broad or generic commentary.
-`;
+Provide a comprehensive strategic analysis: 
+- Leadership impact 
+- Growth trajectory
+- Risk-opportunity matrix
+Offer specific, actionable insights.
+`.trim();
 
     const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
 
-    // Final synthesis
-    const finalSynthesisPrompt = `Create an executive brief based on the following analysis of ${refinedQuery}:
+    // 16) Final synthesis
+    const finalSynthesisPrompt = `
+Create an executive brief based on the analysis of ${refinedQuery}:
 ${strategicAnalysis}
 
 ### Deliverables
-1. A concise executive summary highlighting:
-   - Key strategic insights
-   - Critical success factors
-   - Major risks and opportunities
-   - Strength of competitive positioning
-
-2. Five highly specific questions a venture capitalist or investor might ask, focusing on:
-   - Validation of growth assumptions
-   - Testing strategic hypotheses
-   - Assessment of execution capabilities
-   - Risk mitigation strategies
-   - Understanding of unique competitive advantages
-
-Ensure all insights are concrete and actionable.
-`;
+1. A concise executive summary
+2. Five specific questions for investors
+All insights must be concrete & actionable.
+`.trim();
 
     const finalSynthesis = await analyzeWithO1(finalSynthesisPrompt);
 
-    // Parse final output
+    // 17) Parse final output
     let summary = '';
     let keyQuestions: string[] = [];
     const parts = finalSynthesis.split(/(?=Questions:|Key Questions:|Strategic Questions:)/i);
@@ -449,9 +551,9 @@ Ensure all insights are concrete and actionable.
       const questionsText = parts[1].replace(/(?:Questions|Key Questions|Strategic Questions):/i, '');
       keyQuestions = questionsText
         .split(/(?:\d+\.|\n-|\n\*)\s+/)
-        .filter(q => q.trim())
-        .map(q => q.trim())
-        .filter(q => q.endsWith('?'))
+        .filter((q) => q.trim())
+        .map((q) => q.trim())
+        .filter((q) => q.endsWith('?'))
         .slice(0, 5);
     }
 
@@ -477,14 +579,15 @@ Ensure all insights are concrete and actionable.
       );
     }
 
+    // store in cache & return
     cache.set(cacheKey, results);
     return NextResponse.json(results);
 
   } catch (error) {
+    console.error('Error processing search:', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid input parameters.' }, { status: 400 });
     }
-    console.error('Error processing search:', error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
