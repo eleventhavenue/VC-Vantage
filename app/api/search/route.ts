@@ -51,7 +51,6 @@ interface AnalysisResults {
   keyQuestions: string[];
 }
 
-// For typed prompts
 interface IPromptsSet {
   overview: string;
   market: string;
@@ -59,7 +58,7 @@ interface IPromptsSet {
 }
 type PersonOrCompany = 'people' | 'company';
 
-// Date objects for experiences
+/* Date & Profile Interfaces */
 interface IDateObject {
   day?: number;
   month?: number;
@@ -95,7 +94,6 @@ interface IProxycurlProfile {
   state?: string;
   country_full_name?: string;
   connections?: number;
-  // fallback for extra fields
   [key: string]: unknown;
 }
 
@@ -108,11 +106,9 @@ const cache = new LRU<string, AnalysisResults>({
 });
 
 /* --------------------
-   PARSING & FORMATTING 
+   DOMAIN EXTRACTION UTILITIES
 -------------------- */
-// Basic domain detection
 const WEBSITE_REGEX = /\b((https?:\/\/)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\S*))/gi;
-// Exclude well-known social media domains
 const EXCLUDED_DOMAINS = [
   'linkedin.com',
   'facebook.com',
@@ -129,18 +125,14 @@ function cleanupDomain(raw: string): string {
   domain = domain.replace(/^www\./i, '');
   return domain;
 }
+
 function isExcludedDomain(domain: string): boolean {
   return EXCLUDED_DOMAINS.some((excluded) => domain.includes(excluded));
 }
 
-/**
- * Extract only relevant custom domains from the user's LinkedIn data.
- * We skip well-known social sites to focus on actual company/portfolio domains.
- */
 function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[] {
   const foundSites = new Set<string>();
 
-  // 1) Scan summary
   if (profile.summary) {
     const matches = profile.summary.match(WEBSITE_REGEX);
     if (matches) {
@@ -152,7 +144,7 @@ function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[
       }
     }
   }
-  // 2) Scan experiences[].description
+
   if (profile.experiences) {
     for (const exp of profile.experiences) {
       if (exp.description) {
@@ -168,18 +160,18 @@ function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[
       }
     }
   }
+
   return Array.from(foundSites);
 }
 
-/**
- * Convert Proxycurl JSON to a readable snippet for Perplexity
- */
+/* --------------------
+   DATA FORMATTING
+-------------------- */
 function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
   if (!profile || Object.keys(profile).length === 0) {
     return `No official LinkedIn data found for ${name}. Proceed carefully.`;
   }
 
-  // Build experiences text
   let experiencesText = '';
   if (Array.isArray(profile.experiences)) {
     experiencesText = profile.experiences
@@ -194,7 +186,6 @@ function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
       .join('\n\n');
   }
 
-  // Build education text
   let educationText = '';
   if (Array.isArray(profile.education)) {
     educationText = profile.education
@@ -238,12 +229,8 @@ NOTE: If conflicting data appears elsewhere, disregard it and trust this verifie
 /* --------------------
    API CALLS
 -------------------- */
-
 const BASE_URL = process.env.BASE_URL || 'https://www.vc-vantage.com';
 
-/**
- * fetchProxycurlData: get the person's LinkedIn data from your local fetchLinkedInProfile route
- */
 async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfile | null> {
   const absoluteUrl = `${BASE_URL}/api/fetchLinkedInProfile?linkedinProfileUrl=${encodeURIComponent(linkedinUrl)}`;
   const res = await fetch(absoluteUrl);
@@ -254,9 +241,6 @@ async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfil
   return (await res.json()) as IProxycurlProfile;
 }
 
-/**
- * fetchFromPerplexity: call the Perplexity API with a textual prompt
- */
 async function fetchFromPerplexity(prompt: string): Promise<string> {
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
@@ -281,9 +265,6 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   return content;
 }
 
-/**
- * analyzeWithO1: call your custom 'o1-mini' model (OpenAI) with a textual prompt
- */
 async function analyzeWithO1(prompt: string): Promise<string> {
   const response = await openai.chat.completions.create({
     model: 'o1-mini',
@@ -314,7 +295,7 @@ const requestSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    // 1) Check session
+    // Authentication and usage checks
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -323,8 +304,6 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
-    // 2) Usage check
     if (!canProceedWithUsage(user)) {
       return NextResponse.json(
         {
@@ -336,7 +315,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3) Parse
+    // Parse request
     const body = await req.json();
     const { query, type, context, disambiguate } = requestSchema.parse(body);
     const sanitizedQuery = query.trim();
@@ -347,7 +326,7 @@ export async function POST(req: Request) {
     if (context?.company) refinedQuery += ` at ${context.company}`;
     if (context?.title) refinedQuery += `, ${context.title}`;
 
-    // 4) Disambiguation
+    // Disambiguation (if requested)
     if (disambiguate) {
       const disambiguationPrompt = `
 You are a strict and concise assistant. We have a person named "${sanitizedQuery}".
@@ -368,31 +347,29 @@ If no strong matches, return fewer items or an empty list.
       return NextResponse.json({ suggestions: lines });
     }
 
-    // 5) Cache check
+    // Check cache
     const cacheKey = `${type}:${refinedQuery}`;
     if (cache.has(cacheKey)) {
       console.log('Cache hit for key:', cacheKey);
       return NextResponse.json(cache.get(cacheKey));
     }
 
-    // 6) If people & we have a linkedinUrl, fetch from Proxycurl
+    // Fetch LinkedIn data if relevant
     let linkedInJSON: IProxycurlProfile | null = null;
     if (type === 'people' && context?.linkedinUrl) {
       linkedInJSON = await fetchProxycurlData(context.linkedinUrl);
     }
 
-    // 7) Format snippet
+    // Format LinkedIn snippet
     const officialLinkedInData = formatLinkedInData(linkedInJSON || {}, refinedQuery);
 
-    // 8) Extract custom domains from that profile
+    // Extract relevant custom domains
     let siteExpansionsText = '';
     if (linkedInJSON) {
       const relevantSites = extractRelevantWebsitesFromProfile(linkedInJSON);
       if (relevantSites.length > 0) {
-        // Potentially fetch expansions from Perplexity for each domain
         const expansions: string[] = [];
         for (const domain of relevantSites) {
-          // Build a short prompt to ask Perplexity about the domain
           const sitePrompt = `
 We have discovered a domain: "${domain}"
 It is associated with ${refinedQuery}'s background from LinkedIn. 
@@ -406,7 +383,7 @@ Ignore unrelated references.
       }
     }
 
-    // 9) Merge the snippet + site expansions into an "overview" block
+    // Combine official LinkedIn data with site expansions
     const combinedSnippet = `
 [OFFICIAL LINKEDIN SNIPPET]
 ${officialLinkedInData}
@@ -415,7 +392,7 @@ ${officialLinkedInData}
 ${siteExpansionsText || 'No custom domains or expansions found.'}
 `.trim();
 
-    // 10) Define base prompts
+    // Base prompts for overview, market, financial
     const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
       people: {
         overview: `# Results for: ${refinedQuery}
@@ -476,7 +453,7 @@ Include:
       },
     };
 
-    // 11) Build final overview prompt with snippet
+    // Build prompts with context
     const overviewPrompt = `
 [IMPORTANT] Use the official data below as primary truth about ${refinedQuery}.
 Ignore conflicting references.
@@ -486,18 +463,17 @@ ${combinedSnippet}
 ${basePrompts[type].overview}
 `;
 
-    // 12) Market & Financial prompts
     const marketPrompt = basePrompts[type].market;
     const financialPrompt = basePrompts[type].financial;
 
-    // 13) fetch from Perplexity
+    // Fetch responses from Perplexity
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
       fetchFromPerplexity(overviewPrompt),
       fetchFromPerplexity(marketPrompt),
       fetchFromPerplexity(financialPrompt),
     ]);
 
-    // 14) Pattern recognition
+    // Pattern recognition
     const patternAnalysisPrompt = `
 Analyze the following verified information about ${refinedQuery}:
 ${overview}
@@ -509,10 +485,9 @@ ${financialAnalysis}
 2. Assess how everything interrelates.
 Focus on generating insights without merely restating the above.
 `.trim();
-
     const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
 
-    // 15) Strategic analysis
+    // Strategic analysis
     const strategicAnalysisPrompt = `
 Based on the verified information and pattern analysis for ${refinedQuery}:
 ${patternAnalysis}
@@ -524,10 +499,9 @@ Provide a comprehensive strategic analysis:
 - Risk-opportunity matrix
 Offer specific, actionable insights.
 `.trim();
-
     const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
 
-    // 16) Final synthesis
+    // Final synthesis
     const finalSynthesisPrompt = `
 Create an executive brief based on the analysis of ${refinedQuery}:
 ${strategicAnalysis}
@@ -537,10 +511,9 @@ ${strategicAnalysis}
 2. Five specific questions for investors
 All insights must be concrete & actionable.
 `.trim();
-
     const finalSynthesis = await analyzeWithO1(finalSynthesisPrompt);
 
-    // 17) Parse final output
+    // Parse final output
     let summary = '';
     let keyQuestions: string[] = [];
     const parts = finalSynthesis.split(/(?=Questions:|Key Questions:|Strategic Questions:)/i);
@@ -566,7 +539,6 @@ All insights must be concrete & actionable.
       keyQuestions,
     };
 
-    // usage deduction
     const usageResult = await checkAndUpdateUsage(user.id);
     if (!usageResult.canProceed) {
       return NextResponse.json(
@@ -579,7 +551,6 @@ All insights must be concrete & actionable.
       );
     }
 
-    // store in cache & return
     cache.set(cacheKey, results);
     return NextResponse.json(results);
 
