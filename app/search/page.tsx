@@ -1,5 +1,4 @@
 // app/search/page.tsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,12 +16,10 @@ import {
   UserSearch,
   Moon,
   Sun,
-  // Removed unused imports: CheckCircle, XCircle
-  Search as SearchIcon, // Renamed to avoid conflicts
+  Search as SearchIcon,
 } from 'lucide-react';
 import UserDropdown from '@/components/UserDropdown';
-import Modal from '@/components/Modal'; // Assuming you have a Modal component
-// Removed FeedbackModal import as it's not used here
+import Modal from '@/components/Modal';
 import Sidebar from '@/components/Sidebar';
 
 export default function SearchPage() {
@@ -31,6 +28,10 @@ export default function SearchPage() {
   const [peopleCompany, setPeopleCompany] = useState('');
   const [peopleTitle, setPeopleTitle] = useState('');
   const [companyTitle, setCompanyTitle] = useState('');
+
+  // NEW: We'll store optional LinkedIn URL if searching for people
+  const [peopleLinkedInUrl, setPeopleLinkedInUrl] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -43,14 +44,11 @@ export default function SearchPage() {
   const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false);
   const [currentType, setCurrentType] = useState<'people' | 'company' | null>(null);
 
-  // Removed Feedback state variables as they're not used here
-
   // Toggle dark mode
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Apply dark mode class to <html> element
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -61,7 +59,6 @@ export default function SearchPage() {
     }
   }, [isDarkMode]);
 
-  // Load dark mode preference on initial render
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme');
     setIsDarkMode(storedTheme === 'dark');
@@ -73,7 +70,7 @@ export default function SearchPage() {
   ) => {
     e.preventDefault();
     const query = type === 'people' ? peopleQuery : companyQuery;
-    const company = type === 'people' ? peopleCompany : companyQuery; // For 'company' type, use companyQuery
+    const company = type === 'people' ? peopleCompany : companyQuery;
     const title = type === 'people' ? peopleTitle : companyTitle;
 
     if (isLoading) return;
@@ -83,11 +80,11 @@ export default function SearchPage() {
     }
 
     setIsLoading(true);
-    setCurrentType(type); // Keep track of current type for suggestions
+    setCurrentType(type);
 
     try {
       if (needDisambiguation) {
-        // Step 1: Request disambiguation suggestions
+        // Request disambiguation suggestions
         const disambiguationResponse = await fetch('/api/search', {
           method: 'POST',
           headers: {
@@ -107,7 +104,10 @@ export default function SearchPage() {
         const disambiguationData = await disambiguationResponse.json();
 
         if (disambiguationResponse.ok) {
-          if (disambiguationData.suggestions && disambiguationData.suggestions.length > 0) {
+          if (
+            disambiguationData.suggestions &&
+            disambiguationData.suggestions.length > 0
+          ) {
             setSuggestions(disambiguationData.suggestions);
             setIsSuggestionModalOpen(true);
           } else {
@@ -117,7 +117,7 @@ export default function SearchPage() {
           alert(disambiguationData.error || 'Error during disambiguation.');
         }
       } else {
-        // Step 2: Perform the actual search
+        // Perform the actual search
         await performSearch(query, type, company, title);
       }
     } catch (error) {
@@ -135,18 +135,25 @@ export default function SearchPage() {
     title?: string
   ) => {
     try {
-      // Store the last search parameters in localStorage
+      // We store last search in localStorage, in case you use it later
       localStorage.setItem(
         'lastSearch',
         JSON.stringify({ query, type, company, title })
       );
 
-      // Navigate to the reports page with the selected or refined query
-      await router.push(
-        `/reports?query=${encodeURIComponent(query)}&type=${type}${
-          company ? `&company=${encodeURIComponent(company)}` : ''
-        }${title ? `&title=${encodeURIComponent(title)}` : ''}`
-      );
+      // Build the query string
+      let url = `/reports?query=${encodeURIComponent(query)}&type=${type}`;
+      if (company) url += `&company=${encodeURIComponent(company)}`;
+      if (title) url += `&title=${encodeURIComponent(title)}`;
+
+      // If user provided a LinkedIn URL, pass it along so your search route can use it
+      if (type === 'people' && peopleLinkedInUrl.trim() !== '') {
+        // We'll add it as something like: &linkedinUrl=...
+        url += `&linkedinUrl=${encodeURIComponent(peopleLinkedInUrl.trim())}`;
+      }
+
+      // Now navigate
+      await router.push(url);
     } catch (error) {
       console.error('Error navigating to reports:', error);
       alert('An error occurred while navigating to the report. Please try again.');
@@ -158,9 +165,8 @@ export default function SearchPage() {
     setIsLoading(true);
     try {
       if (currentType) {
-        await performSearch(suggestion, currentType, undefined, undefined); // Assuming suggestion includes necessary context
+        await performSearch(suggestion, currentType, undefined, undefined);
       } else {
-        // If currentType is null, default to 'people'
         await performSearch(suggestion, 'people', undefined, undefined);
       }
     } catch (error) {
@@ -171,14 +177,10 @@ export default function SearchPage() {
     }
   };
 
-  // Removed handleFeedback and closeFeedbackModal as they're not used here
-
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Sidebar */}
       <Sidebar />
 
-      {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         <header className="bg-white dark:bg-gray-800 shadow-sm">
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
@@ -186,17 +188,12 @@ export default function SearchPage() {
               Search
             </h1>
             <div className="flex items-center space-x-4">
-              {/* Dark mode toggle button */}
               <button
                 onClick={toggleDarkMode}
                 className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none"
                 aria-label="Toggle Dark Mode"
               >
-                {isDarkMode ? (
-                  <Sun className="h-6 w-6" />
-                ) : (
-                  <Moon className="h-6 w-6" />
-                )}
+                {isDarkMode ? <Sun className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
               </button>
               <UserDropdown />
             </div>
@@ -214,16 +211,16 @@ export default function SearchPage() {
                 individuals and companies. Get accurate, comprehensive research
                 to inform your investment decisions.
               </p>
+
               <Tabs defaultValue="people" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="people">People</TabsTrigger>
                   <TabsTrigger value="company">Companies</TabsTrigger>
                 </TabsList>
+
+                {/* People tab */}
                 <TabsContent value="people">
-                  <form
-                    onSubmit={(e) => handleSearch(e, 'people')}
-                    className="mt-8 space-y-3"
-                  >
+                  <form onSubmit={(e) => handleSearch(e, 'people')} className="mt-8 space-y-3">
                     <div className="flex flex-col space-y-3">
                       <div className="flex items-center">
                         <UserSearch className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-2" />
@@ -236,6 +233,19 @@ export default function SearchPage() {
                           required
                         />
                       </div>
+
+                      {/* NEW LinkedIn URL field */}
+                      <div className="flex items-center">
+                        <SearchIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-2" />
+                        <Input
+                          type="text"
+                          placeholder="LinkedIn Profile URL (optional)"
+                          className="block w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                          value={peopleLinkedInUrl}
+                          onChange={(e) => setPeopleLinkedInUrl(e.target.value)}
+                        />
+                      </div>
+
                       <div className="flex items-center">
                         <Building2 className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-2" />
                         <Input
@@ -246,6 +256,7 @@ export default function SearchPage() {
                           onChange={(e) => setPeopleCompany(e.target.value)}
                         />
                       </div>
+
                       <div className="flex items-center">
                         <SearchIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-2" />
                         <Input
@@ -256,6 +267,7 @@ export default function SearchPage() {
                           onChange={(e) => setPeopleTitle(e.target.value)}
                         />
                       </div>
+
                       <div className="flex items-center">
                         <input
                           type="checkbox"
@@ -264,7 +276,10 @@ export default function SearchPage() {
                           onChange={(e) => setNeedDisambiguation(e.target.checked)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
                         />
-                        <label htmlFor="disambiguate-people" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                        <label
+                          htmlFor="disambiguate-people"
+                          className="ml-2 block text-sm text-gray-900 dark:text-gray-300"
+                        >
                           Need Disambiguation?
                         </label>
                       </div>
@@ -278,11 +293,10 @@ export default function SearchPage() {
                     </Button>
                   </form>
                 </TabsContent>
+
+                {/* Company tab */}
                 <TabsContent value="company">
-                  <form
-                    onSubmit={(e) => handleSearch(e, 'company')}
-                    className="mt-8 space-y-3"
-                  >
+                  <form onSubmit={(e) => handleSearch(e, 'company')} className="mt-8 space-y-3">
                     <div className="flex flex-col space-y-3">
                       <div className="flex items-center">
                         <Building2 className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-2" />
@@ -313,7 +327,10 @@ export default function SearchPage() {
                           onChange={(e) => setNeedDisambiguation(e.target.checked)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
                         />
-                        <label htmlFor="disambiguate-company" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                        <label
+                          htmlFor="disambiguate-company"
+                          className="ml-2 block text-sm text-gray-900 dark:text-gray-300"
+                        >
                           Need Disambiguation?
                         </label>
                       </div>
@@ -328,6 +345,7 @@ export default function SearchPage() {
                   </form>
                 </TabsContent>
               </Tabs>
+
               <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
                 Our AI-powered research provides deep insights to support your
                 due diligence process.
@@ -338,11 +356,17 @@ export default function SearchPage() {
 
         {/* Disambiguation Modal */}
         {isSuggestionModalOpen && (
-          <Modal onClose={() => setIsSuggestionModalOpen(false)} title="Select the correct entity">
+          <Modal
+            onClose={() => setIsSuggestionModalOpen(false)}
+            title="Select the correct entity"
+          >
             <div className="space-y-4">
               {suggestions.length > 0 ? (
                 suggestions.map((suggestion, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 border rounded-md">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 border rounded-md"
+                  >
                     <span>{suggestion}</span>
                     <Button
                       onClick={() => handleSuggestionSelect(suggestion)}
@@ -368,8 +392,6 @@ export default function SearchPage() {
             </div>
           </Modal>
         )}
-
-        {/* Removed Feedback Modal from search page */}
       </main>
     </div>
   );

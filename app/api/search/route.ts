@@ -25,7 +25,6 @@ function canProceedWithUsage(user: {
   }
 }
 
-
 // Constants
 const TRIAL_LIMIT = 5;
 const MONTHLY_LIMIT = 30;
@@ -34,16 +33,13 @@ const MONTHLY_LIMIT = 30;
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
+
+// Helper to remove citations in text
 function removeCitations(text: string): string {
   return text.replace(/\[\d+\]/g, '');
 }
 
-// Initialize LRU Cache
-const cache = new LRU<string, AnalysisResults>({
-  max: 500,
-  ttl: 1000 * 60 * 60, // 1 hour
-});
-
+// For final results interface
 interface AnalysisResults {
   overview: string;
   marketAnalysis: string;
@@ -53,11 +49,48 @@ interface AnalysisResults {
   keyQuestions: string[];
 }
 
+// We'll define the shape of each set of prompts
+interface IPromptsSet {
+  overview: string;
+  market: string;
+  financial: string;
+}
+
+type PersonOrCompany = 'people' | 'company';
+
+// LRU Cache
+const cache = new LRU<string, AnalysisResults>({
+  max: 500,
+  ttl: 1000 * 60 * 60, // 1 hour
+});
+
+// Minimal interface for the Proxycurl data if you want to avoid `any`
+interface IProxycurlProfile {
+  full_name?: string;
+  headline?: string;
+  summary?: string;
+  experiences?: unknown[];
+  // ... add what you need
+  [key: string]: unknown; // fallback
+}
+
+// A small helper to call your fetchLinkedInProfile route
+async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfile | null> {
+  const res = await fetch(
+    `/api/fetchLinkedInProfile?linkedinProfileUrl=${encodeURIComponent(linkedinUrl)}`
+  );
+  if (!res.ok) {
+    console.error('Proxycurl call failed:', await res.text());
+    return null;
+  }
+  return (await res.json()) as IProxycurlProfile;
+}
+
 async function fetchFromPerplexity(prompt: string): Promise<string> {
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY!}`,
+      Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY!}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -71,7 +104,6 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
-
   if (!data?.choices?.[0]?.message?.content) {
     throw new Error('Invalid response structure from Perplexity API.');
   }
@@ -95,55 +127,56 @@ async function analyzeWithO1(prompt: string): Promise<string> {
   return response.choices[0].message.content.trim();
 }
 
-// Extend schema to include optional context and disambiguation flag
+// Our request schema
 const requestSchema = z.object({
   query: z.string().min(1).max(500),
   type: z.enum(['people', 'company']),
-  context: z.object({
-    company: z.string().optional(),
-    title: z.string().optional(),
-  }).optional(),
+  context: z
+    .object({
+      company: z.string().optional(),
+      title: z.string().optional(),
+      linkedinUrl: z.string().optional(),
+    })
+    .optional(),
   disambiguate: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
   try {
-    // Check authentication
+    // 1) Auth checks
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Get user and check subscription status
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
     });
-
     if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // 2) Usage checks
+    if (!canProceedWithUsage(user)) {
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        {
+          error: 'Trial limit reached. Please subscribe to continue using VC Vantage.',
+          trialLimitReached: true,
+          usageCount: user.trialUsageCount,
+        },
+        { status: 402 }
       );
     }
 
-    // Preliminary usage check
-    if (!canProceedWithUsage(user)) {
-      return NextResponse.json({
-        error: 'Trial limit reached. Please subscribe to continue using VC Vantage.',
-        trialLimitReached: true,
-        usageCount: user.trialUsageCount,
-      }, { status: 402 });
-    }
-
-    // Parse and validate request
+    // 3) Parse request
     const body = await req.json();
     const { query, type, context, disambiguate } = requestSchema.parse(body);
 
     if (!query?.trim() || !type) {
-      return NextResponse.json({ error: 'Query and type parameters are required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Query and type parameters are required.' },
+        { status: 400 }
+      );
     }
 
     const sanitizedQuery = query.trim();
@@ -151,43 +184,54 @@ export async function POST(req: Request) {
     if (context?.company) refinedQuery += ` at ${context.company}`;
     if (context?.title) refinedQuery += `, ${context.title}`;
 
-    // If disambiguation is requested, perform preliminary lookup
+    // 4) Check disambiguation
     if (disambiguate) {
       const disambiguationPrompt = `
-    You are a strict and concise assistant. We have a person named "${sanitizedQuery}".
-    We also have optional context: Company = "${context?.company || ""}", Title = "${context?.title || ""}".
-    Please return up to 3 distinct individuals (by name or identifying info) who match or might be confused with this name/context.
-    Respond in a short, plain-text list format like:
-    1. ...
-    2. ...
-    3. ...
-    No disclaimers or extra text. Just the list of possible matches.
-    If no strong matches, return fewer items or an empty list.
-    `;
-    
+        You are a strict and concise assistant. We have a person named "${sanitizedQuery}".
+        We also have optional context: Company = "${context?.company || ''}", Title = "${
+        context?.title || ''
+      }".
+        Please return up to 3 distinct individuals (by name or identifying info) who match or might be confused with this name/context.
+        Respond in a short, plain-text list format like:
+        1. ...
+        2. ...
+        3. ...
+        No disclaimers or extra text. Just the list of possible matches.
+        If no strong matches, return fewer items or an empty list.
+      `;
       const rawString = await analyzeWithO1(disambiguationPrompt);
-    
-      // Parse the AI's response into an array
-      // e.g. "1. John Doe\n2. John C. Doe\n3. Jonathan Doe"
-      // We'll do a simple split on new lines or numbered lines:
       const lines = rawString
         .split('\n')
-        .map(l => l.replace(/^\d+\.\s*/, '').trim()) // remove "1. " prefix
-        .filter(Boolean); // remove empty lines
-    
+        .map((l) => l.replace(/^\d+\.\s*/, '').trim())
+        .filter(Boolean);
       return NextResponse.json({ suggestions: lines });
     }
-    
-    
 
-    // Use a combined cache key including type and refinedQuery
+    // 5) Check cache
     const cacheKey = `${type}:${refinedQuery}`;
     if (cache.has(cacheKey)) {
       console.log('Cache hit for key:', cacheKey);
       return NextResponse.json(cache.get(cacheKey));
     }
 
-    const basePrompts = {
+    // 6) Optionally fetch LinkedIn data
+    let linkedInJSON: IProxycurlProfile | null = null;
+    if (type === 'people' && context?.linkedinUrl) {
+      linkedInJSON = await fetchProxycurlData(context.linkedinUrl);
+    }
+
+    // We'll inject this text into our prompts if available
+    let officialLinkedInSnippet = '';
+    if (linkedInJSON) {
+      officialLinkedInSnippet = `
+# Official LinkedIn Data for ${refinedQuery} from Proxycurl
+${JSON.stringify(linkedInJSON, null, 2)}
+---
+`;
+    }
+
+    // 7) Define our typed basePrompts
+    const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
       people: {
         overview: `# Results for: ${refinedQuery}
     
@@ -213,132 +257,130 @@ Explain the mission of ${refinedQuery} and the support services they offer to th
 
 ### LinkedIn Profile
 Incorporate information from ${refinedQuery}'s LinkedIn profile to ensure accuracy in employment history, roles, and professional achievements. If a LinkedIn profile is unavailable, use other reputable sources such as official company websites, press releases, and professional biographies to provide accurate information.`,
-        
         market: `## Market Analysis
-    
+
 ### Market and Competitive Landscape
 Provide an analysis of the market and competitive landscape in which ${refinedQuery} operates.
-    
+
 ### Key Competitors
 Identify and describe the key competitors of ${refinedQuery}.
-    
+
 ### Emerging Market Trends
 Discuss the emerging market trends relevant to ${refinedQuery}'s focus areas.
-    
+
 ### Leadership Influence
 Analyze how the leadership team of ${refinedQuery} influences its market position.
-    
+
 ### Potential Threats and Opportunities
 Identify potential threats and opportunities facing ${refinedQuery} in the current market.`,
-        
         financial: `## Financial Analysis
-    
+
 ### Funding History
 Detail the funding history of ${refinedQuery}, including previous funds raised and key investors.
-    
+
 ### Investment Strategy and Funding Rounds
 Describe ${refinedQuery}'s investment strategy and the typical funding rounds they participate in.
-    
+
 ### Revenue Streams
 Explain the revenue streams of ${refinedQuery}, if applicable.
-    
+
 ### Profitability
 Assess the profitability of ${refinedQuery}, including key financial metrics.
-    
+
 ### Recent Funding Rounds and Investor Profiles
 Provide information on recent funding rounds and the profiles of new investors.
-    
+
 ### Financial Challenges and Risks
 Identify any financial challenges and risks faced by ${refinedQuery}.
-    
+
 ### Market Trends and Opportunities
 Discuss how current market trends present opportunities or challenges for ${refinedQuery}.
-    
+
 ### Financial Health Indicators
-Summarize key financial health indicators for ${refinedQuery}.`
+Summarize key financial health indicators for ${refinedQuery}.`,
       },
-    
       company: {
         overview: `# Results for: ${refinedQuery}
-    
+
 ## Overview
-    
+
 ### Industry and Focus
 Provide a detailed description of ${refinedQuery}'s industry focus, including the sectors they operate in and their strategic approach.
-    
+
 ### Market Position
 Analyze ${refinedQuery}'s position in the market, highlighting their unique value propositions and how they differentiate themselves from competitors.
-    
+
 ### Founding and Team
 List the founding year, location, and key team members of ${refinedQuery}. Include brief professional backgrounds and their roles within the company.
-    
+
 ### Key Milestones
 Detail significant milestones achieved by ${refinedQuery}, such as product launches, market expansions, and partnerships.
-    
+
 ### Recent Developments
 Summarize the latest activities and developments involving ${refinedQuery}, including new products and strategic initiatives.
-    
+
 ### Mission and Support
 Explain the mission of ${refinedQuery} and the support services they offer to their customers beyond their core products.
-    
+
 ### LinkedIn Profile
 Incorporate information from ${refinedQuery}'s LinkedIn profile to ensure accuracy in company history, leadership roles, and strategic initiatives. If a LinkedIn profile is unavailable, use other reputable sources such as official company websites and press releases to provide accurate information.`,
-        
         market: `## Market Analysis
-    
+
 ### Market and Competitive Landscape
 Provide an analysis of the market and competitive landscape in which ${refinedQuery} operates.
-    
+
 ### Key Competitors
 Identify and describe the key competitors of ${refinedQuery}.
-    
+
 ### Emerging Market Trends
 Discuss the emerging market trends relevant to ${refinedQuery}'s focus areas.
-    
+
 ### Leadership Influence
 Analyze how the leadership team of ${refinedQuery} influences its market position.
-    
+
 ### Potential Threats and Opportunities
 Identify potential threats and opportunities facing ${refinedQuery} in the current market.`,
-        
         financial: `## Financial Analysis
-    
+
 ### Funding History
 Detail the funding history of ${refinedQuery}, including previous funding rounds and key investors.
-    
+
 ### Investment Strategy and Funding Rounds
 Describe ${refinedQuery}'s investment strategy and the typical funding rounds they participate in.
-    
+
 ### Revenue Streams
 Explain the revenue streams of ${refinedQuery}, if applicable.
-    
+
 ### Profitability
 Assess the profitability of ${refinedQuery}, including key financial metrics.
-    
+
 ### Recent Funding Rounds and Investor Profiles
 Provide information on recent funding rounds and the profiles of new investors.
-    
+
 ### Financial Challenges and Risks
 Identify any financial challenges and risks faced by ${refinedQuery}.
-    
+
 ### Market Trends and Opportunities
 Discuss how current market trends present opportunities or challenges for ${refinedQuery}.
-    
+
 ### Financial Health Indicators
-Summarize key financial health indicators for ${refinedQuery}.`
-      }
+Summarize key financial health indicators for ${refinedQuery}.`,
+      },
     };
 
-    const selectedPrompts = basePrompts[type as keyof typeof basePrompts];
+    // 8) Build final prompts, injecting the officialLinkedInSnippet (if any) into “overview” prompt
+    const overviewPrompt = `${officialLinkedInSnippet}${basePrompts[type].overview}`;
+    const marketPrompt = basePrompts[type].market;
+    const financialPrompt = basePrompts[type].financial;
 
-    // Step 1: Gather factual information using Perplexity
+    // 9) fetch from Perplexity
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
-      fetchFromPerplexity(selectedPrompts.overview),
-      fetchFromPerplexity(selectedPrompts.market),
-      fetchFromPerplexity(selectedPrompts.financial),
+      fetchFromPerplexity(overviewPrompt),
+      fetchFromPerplexity(marketPrompt),
+      fetchFromPerplexity(financialPrompt),
     ]);
 
-    // Step 2: Pattern Recognition
+    // 10) Pattern recognition
     const patternAnalysisPrompt = `Analyze the following verified information about ${refinedQuery}:
 ${overview}
 ${marketAnalysis}
@@ -353,7 +395,7 @@ Focus exclusively on generating insights without restating the given information
 
     const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
 
-    // Step 3: Strategic Deep Dive
+    // 11) Strategic analysis
     const strategicAnalysisPrompt = `Based on the verified information and the following pattern analysis for ${refinedQuery}:
 ${patternAnalysis}
 Provide a comprehensive strategic analysis focusing on:
@@ -364,7 +406,7 @@ Provide specific, actionable insights rather than general observations.`;
 
     const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
 
-    // Step 4: Final synthesis
+    // 12) Final synthesis
     const finalSynthesisPrompt = `Create an executive brief based on the following analysis of ${refinedQuery}:
 ${strategicAnalysis}
 Deliverables:
@@ -383,6 +425,7 @@ Make sure all insights are specific and actionable.`;
 
     const finalSynthesis = await analyzeWithO1(finalSynthesisPrompt);
 
+    // 13) Parse final output
     let summary = '';
     let keyQuestions: string[] = [];
     const parts = finalSynthesis.split(/(?=Questions:|Key Questions:|Strategic Questions:)/i);
@@ -393,9 +436,9 @@ Make sure all insights are specific and actionable.`;
       const questionsText = parts[1].replace(/(?:Questions|Key Questions|Strategic Questions):/i, '');
       keyQuestions = questionsText
         .split(/(?:\d+\.|\n-|\n\*)\s+/)
-        .filter(q => q.trim())
-        .map(q => q.trim())
-        .filter(q => q.endsWith('?'))
+        .filter((q) => q.trim())
+        .map((q) => q.trim())
+        .filter((q) => q.endsWith('?'))
         .slice(0, 5);
     }
 
@@ -408,19 +451,22 @@ Make sure all insights are specific and actionable.`;
       keyQuestions,
     };
 
-    // Final usage update/deduction
+    // 14) usage deduction
     const usageResult = await checkAndUpdateUsage(user.id);
     if (!usageResult.canProceed) {
-      return NextResponse.json({
-        error: usageResult.error,
-        usageCount: usageResult.usageCount,
-        limit: usageResult.limit
-      }, { status: 402 });
+      return NextResponse.json(
+        {
+          error: usageResult.error,
+          usageCount: usageResult.usageCount,
+          limit: usageResult.limit,
+        },
+        { status: 402 }
+      );
     }
 
+    // 15) Cache result
     cache.set(cacheKey, results);
     return NextResponse.json(results);
-
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid input parameters.' }, { status: 400 });

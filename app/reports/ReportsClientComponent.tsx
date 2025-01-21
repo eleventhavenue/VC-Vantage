@@ -40,6 +40,10 @@ export default function ReportsClientComponent() {
   const typeParam = searchParams.get('type');
   const companyParam = searchParams.get('company') || undefined;
   const titleParam = searchParams.get('title') || undefined;
+
+  // NEW: Grab any optional LinkedIn URL from the searchParams
+  const linkedinUrlParam = searchParams.get('linkedinUrl') || undefined;
+
   // Function to handle fetching the report
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -57,11 +61,13 @@ export default function ReportsClientComponent() {
           currentSearch.type !== typeParam ||
           !results
         ) {
+          // We can pass the linkedinUrlParam here
           fetchReport(
             queryParam,
             typeParam as 'people' | 'company',
             companyParam,
-            titleParam
+            titleParam,
+            linkedinUrlParam
           );
         }
       } else {
@@ -98,6 +104,7 @@ export default function ReportsClientComponent() {
     typeParam,
     companyParam,
     titleParam,
+    linkedinUrlParam,
     session,
     status,
     router,
@@ -348,10 +355,7 @@ export default function ReportsClientComponent() {
                   <FileText className="h-6 w-6 mr-2" /> Overview
                 </h2>
                 <div className="prose prose-lg dark:prose-dark max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {results.overview}
                   </ReactMarkdown>
                 </div>
@@ -362,10 +366,7 @@ export default function ReportsClientComponent() {
                   <TrendingUp className="h-6 w-6 mr-2" /> Market Analysis
                 </h2>
                 <div className="prose prose-lg dark:prose-dark max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {results.marketAnalysis}
                   </ReactMarkdown>
                 </div>
@@ -376,10 +377,7 @@ export default function ReportsClientComponent() {
                   <DollarSign className="h-6 w-6 mr-2" /> Financial Analysis
                 </h2>
                 <div className="prose prose-lg dark:prose-dark max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {results.financialAnalysis}
                   </ReactMarkdown>
                 </div>
@@ -390,10 +388,7 @@ export default function ReportsClientComponent() {
                   <PieChart className="h-6 w-6 mr-2" /> Strategic Analysis
                 </h2>
                 <div className="prose prose-lg dark:prose-dark max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {results.strategicAnalysis}
                   </ReactMarkdown>
                 </div>
@@ -404,10 +399,7 @@ export default function ReportsClientComponent() {
                   <ClipboardCheck className="h-6 w-6 mr-2" /> Summary and Key Questions
                 </h2>
                 <div className="prose prose-lg dark:prose-dark max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {results.summary}
                   </ReactMarkdown>
                 </div>
@@ -418,10 +410,7 @@ export default function ReportsClientComponent() {
                     </h3>
                     <ul className="list-disc list-inside space-y-2">
                       {results.keyQuestions.map((question: string, index: number) => (
-                        <li
-                          key={index}
-                          className="text-gray-700 dark:text-gray-300"
-                        >
+                        <li key={index} className="text-gray-700 dark:text-gray-300">
                           {question}
                         </li>
                       ))}
@@ -431,8 +420,8 @@ export default function ReportsClientComponent() {
               </section>
             </div>
           )}
-          </div>
-        </main>
-      </div>
-    );
+        </div>
+      </main>
+    </div>
+  );
 }

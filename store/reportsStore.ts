@@ -9,11 +9,13 @@ interface ReportSummary {
   createdAt: string;
 }
 
+// UPDATED: Now includes an optional `linkedinUrl` field.
 interface SearchParams {
   query: string;
   type: 'people' | 'company';
   company?: string;
   title?: string;
+  linkedinUrl?: string;
 }
 
 interface SearchResults {
@@ -31,11 +33,13 @@ interface ReportsState {
   results: SearchResults | null;
   error: string | null;
   currentSearch: SearchParams | null;
+  // UPDATED: fetchReport now accepts a 5th optional param.
   fetchReport: (
     query: string,
     type: 'people' | 'company',
     company?: string,
-    title?: string
+    title?: string,
+    linkedinUrl?: string,
   ) => Promise<void>;
   fetchAllReports: () => Promise<void>;
   resetReport: () => void;
@@ -50,9 +54,11 @@ export const useReportsStore = create<ReportsState>((set, get) => ({
   currentSearch: null,
 
   // Fetch a specific report based on search parameters
-  fetchReport: async (query, type, company, title) => {
-    // Prevent duplicate fetches for the same query and type
+  // UPDATED: Accepts `linkedinUrl` as the 5th arg
+  fetchReport: async (query, type, company, title, linkedinUrl) => {
     const { currentSearch, isLoading, results } = get();
+
+    // Prevent duplicate fetches for the same query & type while loading
     if (
       isLoading &&
       currentSearch?.query === query &&
@@ -60,6 +66,7 @@ export const useReportsStore = create<ReportsState>((set, get) => ({
     ) {
       return;
     }
+    // If we already have results for the same search, skip
     if (
       currentSearch?.query === query &&
       currentSearch.type === type &&
@@ -68,10 +75,12 @@ export const useReportsStore = create<ReportsState>((set, get) => ({
       return;
     }
 
+    // Update state: set isLoading, clear error & results,
+    // store all five possible fields in currentSearch
     set({
       isLoading: true,
       error: null,
-      currentSearch: { query, type, company, title },
+      currentSearch: { query, type, company, title, linkedinUrl },
       results: null,
     });
 
@@ -81,7 +90,16 @@ export const useReportsStore = create<ReportsState>((set, get) => ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query, type, context: { company, title } }),
+        // Pass the optional linkedinUrl in context
+        body: JSON.stringify({
+          query,
+          type,
+          context: {
+            company,
+            title,
+            linkedinUrl,
+          },
+        }),
       });
 
       const contentType = response.headers.get('content-type');
@@ -99,12 +117,13 @@ export const useReportsStore = create<ReportsState>((set, get) => ({
       // Store the latest search in localStorage
       localStorage.setItem(
         'lastSearch',
-        JSON.stringify({ query, type, company, title })
+        JSON.stringify({ query, type, company, title, linkedinUrl })
       );
 
       // Optionally, store the results with a unique key
       const storageKey = `report_${encodeURIComponent(query)}_${type}`;
       localStorage.setItem(storageKey, JSON.stringify(data));
+
     } catch (error: unknown) {
       console.error('Error fetching results:', error);
       if (error instanceof Error) {
@@ -141,6 +160,7 @@ export const useReportsStore = create<ReportsState>((set, get) => ({
 
       // Optionally, cache reports in localStorage
       localStorage.setItem('reports', JSON.stringify(data));
+
     } catch (error: unknown) {
       console.error('Error fetching reports:', error);
       if (error instanceof Error) {
