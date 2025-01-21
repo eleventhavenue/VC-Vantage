@@ -75,7 +75,7 @@ interface IProxycurlProfile {
 }
 
 // GET from environment or default to localhost
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'https://www.vc-vantage.com';
 
 // FIX: Use an absolute URL so Node server can parse it
 async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfile | null> {
