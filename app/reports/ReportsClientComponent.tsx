@@ -189,6 +189,19 @@ export default function ReportsClientComponent() {
     ),
   };
 
+  async function handleSaveReport() {
+    try {
+      await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(results),
+      });
+      alert('Report saved successfully.');
+    } catch (e) {
+      console.error('Save failed:', e);
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
@@ -276,6 +289,7 @@ export default function ReportsClientComponent() {
                   <Link href="/search">
                     <Button className="px-6 py-3">Back to Search</Button>
                   </Link>
+                  <Button onClick={handleSaveReport}>Save Report</Button>
                 </div>
               </header>
 
