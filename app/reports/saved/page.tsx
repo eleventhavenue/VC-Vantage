@@ -1,12 +1,11 @@
-// app/reports/page.tsx
+// app/reports/saved/page.tsx
+import React, { Suspense } from 'react'
+import ReportsList from '../saved/ReportsList' // or wherever your ReportsList is
+import Spinner from '@/components/ui/Spinner'
 
 export const dynamic = 'force-dynamic';
 
-import React, { Suspense } from 'react'
-import ReportsClientComponent from './ReportsClientComponent'
-import Spinner from '@/components/ui/Spinner'
-
-export default function ReportsPage() {
+export default function SavedReportsPage() {
   return (
     <Suspense
       fallback={
@@ -15,7 +14,7 @@ export default function ReportsPage() {
         </div>
       }
     >
-      <ReportsClientComponent />
+      <ReportsList />
     </Suspense>
   );
 }

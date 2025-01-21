@@ -60,18 +60,43 @@ const Sidebar = () => {
           Search
         </Link>
 
-        {/* Reports Link */}
-        <Link
-          href="/reports"
-          className={`flex items-center px-4 py-2 rounded-md ${
-            isActive('/reports')
-              ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-          }`}
-        >
-          <FileText className="h-5 w-5 mr-3" />
-          Reports
-        </Link>
+        {/* Reports group */}
+<div className="mt-2">
+  {/* A header label for the group */}
+  <div className="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300">
+    <FileText className="h-5 w-5 mr-3" />
+    <span className="font-medium">Reports</span>
+  </div>
+
+  {/* Indented sub-links */}
+  <div className="ml-6">
+    {/* Ephemeral Reports */}
+    <Link
+      href="/reports"
+      className={`flex items-center px-4 py-2 rounded-md ${
+        // Mark active if route is `/reports` but not `/reports/saved`
+        isActive('/reports') && !isActive('/reports/saved')
+          ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
+          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+      }`}
+    >
+      Ephemeral
+    </Link>
+
+    {/* Saved Reports */}
+    <Link
+      href="/reports/saved"
+      className={`flex items-center px-4 py-2 rounded-md ${
+        isActive('/reports/saved')
+          ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
+          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+      }`}
+    >
+      Saved
+    </Link>
+  </div>
+</div>
+
 
         {/* Settings Link */}
         <Link
