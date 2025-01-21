@@ -225,13 +225,20 @@ export async function POST(req: Request) {
 
     // We'll inject this text into our prompts if available
     let officialLinkedInSnippet = '';
-    if (linkedInJSON) {
-      officialLinkedInSnippet = `
-# Official LinkedIn Data for ${refinedQuery} from Proxycurl
+if (linkedInJSON && Object.keys(linkedInJSON).length > 0) {
+  officialLinkedInSnippet = `
+[HIGH PRIORITY] Official LinkedIn Data on ${refinedQuery}:
 ${JSON.stringify(linkedInJSON, null, 2)}
 ---
 `;
-    }
+} else {
+  officialLinkedInSnippet = `
+No official LinkedIn data found for ${refinedQuery}.
+If you find other references on the web, proceed carefully.
+---
+`;
+}
+
 
     // 7) Define our typed basePrompts
     const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
@@ -372,7 +379,14 @@ Summarize key financial health indicators for ${refinedQuery}.`,
     };
 
     // 8) Build final prompts, injecting the officialLinkedInSnippet (if any) into “overview” prompt
-    const overviewPrompt = `${officialLinkedInSnippet}${basePrompts[type].overview}`;
+    const overviewPrompt = `
+[IMPORTANT] Use the following official LinkedIn data as the primary (and overriding) source of truth about ${refinedQuery}. If any other information from your training or the web conflicts with it, IGNORE the conflicting data. If official LinkedIn data is incomplete, say so.
+
+# Official LinkedIn Data:
+${officialLinkedInSnippet}
+
+${basePrompts[type].overview}
+`;
     const marketPrompt = basePrompts[type].market;
     const financialPrompt = basePrompts[type].financial;
 
