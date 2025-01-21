@@ -19,11 +19,9 @@ function canProceedWithUsage(user: {
   trialUsageCount: number;
   monthlyUsageCount: number;
 }): boolean {
-  if (user.isSubscribed) {
-    return user.monthlyUsageCount < MONTHLY_LIMIT;
-  } else {
-    return user.trialUsageCount < TRIAL_LIMIT;
-  }
+  return user.isSubscribed
+    ? user.monthlyUsageCount < MONTHLY_LIMIT
+    : user.trialUsageCount < TRIAL_LIMIT;
 }
 const TRIAL_LIMIT = 5;
 const MONTHLY_LIMIT = 30;
@@ -110,12 +108,7 @@ const cache = new LRU<string, AnalysisResults>({
 -------------------- */
 const WEBSITE_REGEX = /\b((https?:\/\/)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\S*))/gi;
 const EXCLUDED_DOMAINS = [
-  'linkedin.com',
-  'facebook.com',
-  'instagram.com',
-  'twitter.com',
-  'youtube.com',
-  'tiktok.com'
+  'linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'youtube.com', 'tiktok.com'
 ];
 
 function cleanupDomain(raw: string): string {
@@ -127,7 +120,7 @@ function cleanupDomain(raw: string): string {
 }
 
 function isExcludedDomain(domain: string): boolean {
-  return EXCLUDED_DOMAINS.some((excluded) => domain.includes(excluded));
+  return EXCLUDED_DOMAINS.some(excluded => domain.includes(excluded));
 }
 
 function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[] {
@@ -169,6 +162,7 @@ function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[
 -------------------- */
 function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
   if (!profile || Object.keys(profile).length === 0) {
+    console.log(`No LinkedIn data found for ${name}`);
     return `No official LinkedIn data found for ${name}. Proceed carefully.`;
   }
 
@@ -232,16 +226,20 @@ NOTE: If conflicting data appears elsewhere, disregard it and trust this verifie
 const BASE_URL = process.env.BASE_URL || 'https://www.vc-vantage.com';
 
 async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfile | null> {
+  console.log(`Fetching Proxycurl data for URL: ${linkedinUrl}`);
   const absoluteUrl = `${BASE_URL}/api/fetchLinkedInProfile?linkedinProfileUrl=${encodeURIComponent(linkedinUrl)}`;
   const res = await fetch(absoluteUrl);
   if (!res.ok) {
     console.error('Proxycurl call failed:', await res.text());
     return null;
   }
-  return (await res.json()) as IProxycurlProfile;
+  const data = await res.json();
+  console.log('Fetched LinkedIn data:', data?.full_name);
+  return data as IProxycurlProfile;
 }
 
 async function fetchFromPerplexity(prompt: string): Promise<string> {
+  console.log('Sending prompt to Perplexity:', prompt.slice(0, 100) + '...');
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
     headers: {
@@ -262,10 +260,12 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   }
   let content = data.choices[0].message.content.trim();
   content = removeCitations(content);
+  console.log('Received response from Perplexity.');
   return content;
 }
 
 async function analyzeWithO1(prompt: string): Promise<string> {
+  console.log('Sending prompt to OpenAI O1:', prompt.slice(0, 100) + '...');
   const response = await openai.chat.completions.create({
     model: 'o1-mini',
     messages: [{ role: 'user', content: prompt }],
@@ -274,7 +274,73 @@ async function analyzeWithO1(prompt: string): Promise<string> {
   if (!response?.choices?.[0]?.message?.content) {
     throw new Error('Invalid response structure from OpenAI API.');
   }
-  return response.choices[0].message.content.trim();
+  const result = response.choices[0].message.content.trim();
+  console.log('Received response from OpenAI O1.');
+  return result;
+}
+
+/* --------------------
+   RESPONSE VALIDATION
+-------------------- */
+interface SearchContext {
+  query: string;
+  type: PersonOrCompany;
+  company?: string;
+  title?: string;
+  linkedInData?: string;
+}
+
+function validateResponse(content: string, context: SearchContext): boolean {
+  console.log('Validating response for context:', context);
+  const searchTerms = [context.query];
+  if (context.company) searchTerms.push(context.company);
+
+  const paragraphs = content.split('\n\n');
+  let relevantParagraphs = 0;
+  for (const paragraph of paragraphs) {
+    if (searchTerms.some(term => paragraph.toLowerCase().includes(term.toLowerCase()))) {
+      relevantParagraphs++;
+    }
+  }
+  const relevanceRatio = paragraphs.length ? relevantParagraphs / paragraphs.length : 1;
+  if (relevanceRatio < 0.6) {
+    console.warn('Response may be losing focus on the subject');
+    return false;
+  }
+  if (context.company && !content.toLowerCase().includes(context.company.toLowerCase())) {
+    console.warn('Response lost company context');
+    return false;
+  }
+  if (context.title && !content.toLowerCase().includes(context.title.toLowerCase())) {
+    console.warn('Response lost title context');
+    return false;
+  }
+  console.log('Response validation passed.');
+  return true;
+}
+
+async function fetchFromPerplexityWithValidation(
+  prompt: string,
+  context: SearchContext
+): Promise<string> {
+  let response = await fetchFromPerplexity(prompt);
+  if (!validateResponse(response, context)) {
+    const enhancedPrompt = `
+${prompt}
+
+CRITICAL REQUIREMENTS:
+1. Focus ONLY on the individual: ${context.query}
+${context.company ? `2. Discuss only their work at: ${context.company}` : ''}
+${context.title ? `3. Focus on their role as: ${context.title}` : ''}
+4. Do NOT discuss or reference any other individuals or companies.
+5. Use ONLY information that can be verified from the provided data.
+
+If unsure, say so rather than including unverified details.
+`;
+    console.log('Retrying with enhanced prompt due to validation failure.');
+    response = await fetchFromPerplexity(enhancedPrompt);
+  }
+  return response;
 }
 
 /* --------------------
@@ -295,16 +361,20 @@ const requestSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    console.log('--- New Search Request ---');
     // Authentication and usage checks
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
+      console.log('Authentication required.');
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) {
+      console.log('User not found.');
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     if (!canProceedWithUsage(user)) {
+      console.log('Usage limit reached.');
       return NextResponse.json(
         {
           error: 'Trial limit reached. Please subscribe to continue using VC Vantage.',
@@ -317,6 +387,7 @@ export async function POST(req: Request) {
 
     // Parse request
     const body = await req.json();
+    console.log('Request body:', body);
     const { query, type, context, disambiguate } = requestSchema.parse(body);
     const sanitizedQuery = query.trim();
     if (!sanitizedQuery) {
@@ -326,8 +397,11 @@ export async function POST(req: Request) {
     if (context?.company) refinedQuery += ` at ${context.company}`;
     if (context?.title) refinedQuery += `, ${context.title}`;
 
+    console.log('Refined Query:', refinedQuery);
+
     // Disambiguation (if requested)
     if (disambiguate) {
+      console.log('Performing disambiguation...');
       const disambiguationPrompt = `
 You are a strict and concise assistant. We have a person named "${sanitizedQuery}".
 We also have optional context: Company = "${context?.company || ''}", Title = "${context?.title || ''}".
@@ -340,10 +414,12 @@ No disclaimers or extra text. Just the list of possible matches.
 If no strong matches, return fewer items or an empty list.
 `;
       const rawString = await analyzeWithO1(disambiguationPrompt);
+      console.log('Disambiguation raw response:', rawString);
       const lines = rawString
         .split('\n')
         .map((l) => l.replace(/^\d+\.\s*/, '').trim())
         .filter(Boolean);
+      console.log('Disambiguation suggestions:', lines);
       return NextResponse.json({ suggestions: lines });
     }
 
@@ -354,22 +430,25 @@ If no strong matches, return fewer items or an empty list.
       return NextResponse.json(cache.get(cacheKey));
     }
 
-    // Fetch LinkedIn data if relevant
+    // Fetch LinkedIn data if applicable
     let linkedInJSON: IProxycurlProfile | null = null;
     if (type === 'people' && context?.linkedinUrl) {
       linkedInJSON = await fetchProxycurlData(context.linkedinUrl);
     }
 
-    // Format LinkedIn snippet
+    // Format official LinkedIn snippet
     const officialLinkedInData = formatLinkedInData(linkedInJSON || {}, refinedQuery);
+    console.log('Official LinkedIn data formatted.');
 
-    // Extract relevant custom domains
+    // Extract and expand on custom domains
     let siteExpansionsText = '';
     if (linkedInJSON) {
       const relevantSites = extractRelevantWebsitesFromProfile(linkedInJSON);
+      console.log('Relevant sites extracted:', relevantSites);
       if (relevantSites.length > 0) {
         const expansions: string[] = [];
         for (const domain of relevantSites) {
+          console.log(`Expanding domain: ${domain}`);
           const sitePrompt = `
 We have discovered a domain: "${domain}"
 It is associated with ${refinedQuery}'s background from LinkedIn. 
@@ -383,7 +462,7 @@ Ignore unrelated references.
       }
     }
 
-    // Combine official LinkedIn data with site expansions
+    // Combine official snippet with domain expansions
     const combinedSnippet = `
 [OFFICIAL LINKEDIN SNIPPET]
 ${officialLinkedInData}
@@ -391,8 +470,11 @@ ${officialLinkedInData}
 [ADDITIONAL DOMAIN EXPANSIONS]
 ${siteExpansionsText || 'No custom domains or expansions found.'}
 `.trim();
+    console.log('Combined snippet prepared.');
 
-    // Base prompts for overview, market, financial
+    /* --------------------
+       BASE PROMPTS
+    -------------------- */
     const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
       people: {
         overview: `# Results for: ${refinedQuery}
@@ -401,20 +483,35 @@ ${siteExpansionsText || 'No custom domains or expansions found.'}
 
 ### Task
 Provide a well-structured overview of ${refinedQuery}'s professional background, 
-focusing on key roles, achievements, and any relevant background info. 
-`,
+focusing on their current role at ${context?.company || 'their company'}.
+
+IMPORTANT: Focus ONLY on the individual from the LinkedIn data provided above. 
+Ignore any other people with similar names.`,
         market: `## Market Analysis
 
-### Task
-Analyze the market environment relevant to ${refinedQuery}, 
-discussing competition, trends, and potential opportunities or threats.
-`,
+Analyze the specific market environment where ${refinedQuery} operates at ${context?.company || 'their company'}.
+Include:
+1. The specific sector(s) where they operate
+2. Key competitors in their space
+3. Relevant industry trends
+4. Growth opportunities and challenges
+
+IMPORTANT: Focus ONLY on the markets relevant to ${refinedQuery}'s current role 
+and recent experiences shown in the LinkedIn data above. 
+Do not discuss other individuals or unrelated markets.`,
         financial: `## Financial Analysis
 
-### Task
-If ${refinedQuery} is linked with a startup or funding, 
-explore known financial aspects, funding rounds, or potential challenges.
-`,
+Analyze any available financial information related to ${refinedQuery}'s ventures,
+particularly their work at ${context?.company || 'their company'}.
+Include:
+1. Any known funding or revenue information
+2. Business model insights
+3. Growth metrics if available
+4. Financial opportunities and challenges
+
+IMPORTANT: Only discuss financial aspects directly related to ${refinedQuery}
+and their verified companies from the LinkedIn data above.
+`
       },
       company: {
         overview: `# Results for: ${refinedQuery}
@@ -449,11 +546,13 @@ Include:
 3. Recent funding rounds or partnerships
 4. Key financial challenges or risks
 5. Indicators of overall financial health
-`,
+`
       },
     };
 
-    // Build prompts with context
+    /* --------------------
+       BUILDING PROMPTS
+    -------------------- */
     const overviewPrompt = `
 [IMPORTANT] Use the official data below as primary truth about ${refinedQuery}.
 Ignore conflicting references.
@@ -462,30 +561,43 @@ ${combinedSnippet}
 
 ${basePrompts[type].overview}
 `;
-
     const marketPrompt = basePrompts[type].market;
     const financialPrompt = basePrompts[type].financial;
 
-    // Fetch responses from Perplexity
+    const searchContext: SearchContext = {
+      query: refinedQuery,
+      type,
+      company: context?.company,
+      title: context?.title,
+      linkedInData: officialLinkedInData
+    };
+
+    /* --------------------
+       FETCHING RESPONSES WITH VALIDATION
+    -------------------- */
+    console.log('Fetching overview, market, and financial analysis from Perplexity...');
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
-      fetchFromPerplexity(overviewPrompt),
-      fetchFromPerplexity(marketPrompt),
-      fetchFromPerplexity(financialPrompt),
+      fetchFromPerplexityWithValidation(overviewPrompt, searchContext),
+      fetchFromPerplexityWithValidation(marketPrompt, searchContext),
+      fetchFromPerplexityWithValidation(financialPrompt, searchContext)
     ]);
+    console.log('Fetched analysis sections.');
 
     // Pattern recognition
     const patternAnalysisPrompt = `
-Analyze the following verified information about ${refinedQuery}:
+Analyze the following verified information exclusively about ${refinedQuery}:
 ${overview}
 ${marketAnalysis}
 ${financialAnalysis}
 
 ### Task
-1. Identify non-obvious patterns, relationships, or hidden risks/opportunities.
-2. Assess how everything interrelates.
+1. Identify non-obvious patterns, relationships, or hidden risks/opportunities concerning only ${refinedQuery}.
+2. Assess how everything interrelates, focusing solely on ${refinedQuery}.
 Focus on generating insights without merely restating the above.
 `.trim();
+    console.log('Starting pattern analysis...');
     const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
+    console.log('Pattern analysis complete.');
 
     // Strategic analysis
     const strategicAnalysisPrompt = `
@@ -493,13 +605,15 @@ Based on the verified information and pattern analysis for ${refinedQuery}:
 ${patternAnalysis}
 
 ### Task
-Provide a comprehensive strategic analysis: 
+Provide a comprehensive strategic analysis focusing exclusively on ${refinedQuery}: 
 - Leadership impact 
 - Growth trajectory
 - Risk-opportunity matrix
-Offer specific, actionable insights.
+Offer specific, actionable insights, and do not discuss other individuals.
 `.trim();
+    console.log('Starting strategic analysis...');
     const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
+    console.log('Strategic analysis complete.');
 
     // Final synthesis
     const finalSynthesisPrompt = `
@@ -511,7 +625,9 @@ ${strategicAnalysis}
 2. Five specific questions for investors
 All insights must be concrete & actionable.
 `.trim();
+    console.log('Generating final synthesis...');
     const finalSynthesis = await analyzeWithO1(finalSynthesisPrompt);
+    console.log('Final synthesis complete.');
 
     // Parse final output
     let summary = '';
@@ -541,6 +657,7 @@ All insights must be concrete & actionable.
 
     const usageResult = await checkAndUpdateUsage(user.id);
     if (!usageResult.canProceed) {
+      console.log('Usage limit exceeded after processing.');
       return NextResponse.json(
         {
           error: usageResult.error,
@@ -552,6 +669,7 @@ All insights must be concrete & actionable.
     }
 
     cache.set(cacheKey, results);
+    console.log('Caching results and sending response.');
     return NextResponse.json(results);
 
   } catch (error) {
