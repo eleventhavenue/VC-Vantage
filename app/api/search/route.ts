@@ -41,6 +41,10 @@ function removeCitations(text: string): string {
    INTERFACES
 -------------------- */
 interface AnalysisResults {
+  overview: string;
+  marketAnalysis: string;
+  financialAnalysis: string;
+  strategicAnalysis: string;
   summary: string;
   keyQuestions: string[];
 }
@@ -53,59 +57,25 @@ interface IPromptsSet {
 type PersonOrCompany = 'people' | 'company';
 
 /* Date & Profile Interfaces */
-interface IDateObject {
-  day?: number;
-  month?: number;
-  year?: number;
-}
-
-interface IExperience {
-  starts_at?: IDateObject;
-  ends_at?: IDateObject | null;
-  title?: string;
-  company?: string;
-  description?: string;
-  location?: string;
-}
-
-interface IEducation {
-  starts_at?: IDateObject;
-  ends_at?: IDateObject;
-  degree_name?: string;
-  field_of_study?: string;
-  school?: string;
-  description?: string;
-}
-
+interface IDateObject { day?: number; month?: number; year?: number; }
+interface IExperience { starts_at?: IDateObject; ends_at?: IDateObject | null; title?: string; company?: string; description?: string; location?: string; }
+interface IEducation { starts_at?: IDateObject; ends_at?: IDateObject; degree_name?: string; field_of_study?: string; school?: string; description?: string; }
 interface IProxycurlProfile {
-  full_name?: string;
-  summary?: string;
-  experiences?: IExperience[];
-  education?: IEducation[];
-  occupation?: string;
-  headline?: string;
-  city?: string;
-  state?: string;
-  country_full_name?: string;
-  connections?: number;
+  full_name?: string; summary?: string; experiences?: IExperience[]; education?: IEducation[]; occupation?: string;
+  headline?: string; city?: string; state?: string; country_full_name?: string; connections?: number;
   [key: string]: unknown;
 }
 
 /* --------------------
    LRU CACHE
 -------------------- */
-const cache = new LRU<string, AnalysisResults>({
-  max: 500,
-  ttl: 1000 * 60 * 60, // 1 hour
-});
+const cache = new LRU<string, AnalysisResults>({ max: 500, ttl: 1000 * 60 * 60 });
 
 /* --------------------
    DOMAIN EXTRACTION UTILITIES
 -------------------- */
 const WEBSITE_REGEX = /\b((https?:\/\/)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\S*))/gi;
-const EXCLUDED_DOMAINS = [
-  'linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'youtube.com', 'tiktok.com'
-];
+const EXCLUDED_DOMAINS = ['linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'youtube.com', 'tiktok.com'];
 
 function cleanupDomain(raw: string): string {
   let domain = raw.trim();
@@ -121,35 +91,21 @@ function isExcludedDomain(domain: string): boolean {
 
 function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[] {
   const foundSites = new Set<string>();
+  const fields = [profile.summary, ...(profile.experiences?.map(e => e.description) || [])];
 
-  if (profile.summary) {
-    const matches = profile.summary.match(WEBSITE_REGEX);
-    if (matches) {
-      for (const m of matches) {
-        const domain = cleanupDomain(m);
-        if (!isExcludedDomain(domain)) {
-          foundSites.add(domain);
-        }
-      }
-    }
-  }
-
-  if (profile.experiences) {
-    for (const exp of profile.experiences) {
-      if (exp.description) {
-        const matches = exp.description.match(WEBSITE_REGEX);
-        if (matches) {
-          for (const m of matches) {
-            const domain = cleanupDomain(m);
-            if (!isExcludedDomain(domain)) {
-              foundSites.add(domain);
-            }
+  for (const field of fields) {
+    if (field) {
+      const matches = field.match(WEBSITE_REGEX);
+      if (matches) {
+        for (const m of matches) {
+          const domain = cleanupDomain(m);
+          if (!isExcludedDomain(domain)) {
+            foundSites.add(domain);
           }
         }
       }
     }
   }
-
   return Array.from(foundSites);
 }
 
@@ -162,33 +118,31 @@ function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
     return `No official LinkedIn data found for ${name}. Proceed carefully.`;
   }
 
-  let experiencesText = '';
-  if (Array.isArray(profile.experiences)) {
-    experiencesText = profile.experiences
-      .map((exp) => {
-        const startYear = exp.starts_at?.year ?? 'N/A';
-        const endYear = exp.ends_at?.year ?? 'Present';
-        const role = exp.title ?? 'Unknown Role';
-        const company = exp.company ?? 'Unknown Company';
-        const desc = exp.description ? `\n   ${exp.description}` : '';
-        return `• ${role} at ${company} (${startYear} - ${endYear})${desc}`;
-      })
-      .join('\n\n');
-  }
+  const experiencesText = Array.isArray(profile.experiences)
+    ? profile.experiences
+        .map((exp) => {
+          const startYear = exp.starts_at?.year ?? 'N/A';
+          const endYear = exp.ends_at?.year ?? 'Present';
+          const role = exp.title ?? 'Unknown Role';
+          const company = exp.company ?? 'Unknown Company';
+          const desc = exp.description ? `\n   ${exp.description}` : '';
+          return `• ${role} at ${company} (${startYear} - ${endYear})${desc}`;
+        })
+        .join('\n\n')
+    : 'No experiences found.';
 
-  let educationText = '';
-  if (Array.isArray(profile.education)) {
-    educationText = profile.education
-      .map((edu) => {
-        const startYear = edu.starts_at?.year ?? 'N/A';
-        const endYear = edu.ends_at?.year ?? 'N/A';
-        const degree = edu.degree_name ?? 'N/A';
-        const field = edu.field_of_study ?? 'N/A';
-        const school = edu.school ?? 'Unknown School';
-        return `• ${degree} in ${field} from ${school} (${startYear} - ${endYear})`;
-      })
-      .join('\n');
-  }
+  const educationText = Array.isArray(profile.education)
+    ? profile.education
+        .map((edu) => {
+          const startYear = edu.starts_at?.year ?? 'N/A';
+          const endYear = edu.ends_at?.year ?? 'N/A';
+          const degree = edu.degree_name ?? 'N/A';
+          const field = edu.field_of_study ?? 'N/A';
+          const school = edu.school ?? 'Unknown School';
+          return `• ${degree} in ${field} from ${school} (${startYear} - ${endYear})`;
+        })
+        .join('\n')
+    : 'No education info';
 
   const city = profile.city ?? '';
   const state = profile.state ?? '';
@@ -204,16 +158,16 @@ Headline: ${profile.headline ?? ''}
 Summary: ${profile.summary ?? ''}
 
 Experience:
-${experiencesText || 'No experiences found.'}
+${experiencesText}
 
 Education:
-${educationText || 'No education info'}
+${educationText}
 
 Location: ${location}
 Connections: ${profile.connections ?? 'N/A'}
 
 NOTE: If conflicting data appears elsewhere, disregard it and trust this verified snippet.
-`.trim();
+  `.trim();
 }
 
 /* --------------------
@@ -254,8 +208,7 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   if (!data?.choices?.[0]?.message?.content) {
     throw new Error('Invalid response structure from Perplexity API.');
   }
-  let content = data.choices[0].message.content.trim();
-  content = removeCitations(content);
+  const content = removeCitations(data.choices[0].message.content.trim());
   console.log('Received response from Perplexity.');
   return content;
 }
@@ -290,14 +243,10 @@ function validateResponse(content: string, context: SearchContext): boolean {
   console.log('Validating response for context:', context);
   const searchTerms = [context.query];
   if (context.company) searchTerms.push(context.company);
-
   const paragraphs = content.split('\n\n');
-  let relevantParagraphs = 0;
-  for (const paragraph of paragraphs) {
-    if (searchTerms.some(term => paragraph.toLowerCase().includes(term.toLowerCase()))) {
-      relevantParagraphs++;
-    }
-  }
+  const relevantParagraphs = paragraphs.filter(p =>
+    searchTerms.some(term => p.toLowerCase().includes(term.toLowerCase()))
+  ).length;
   const relevanceRatio = paragraphs.length ? relevantParagraphs / paragraphs.length : 1;
   if (relevanceRatio < 0.6) {
     console.warn('Response may be losing focus on the subject');
@@ -315,29 +264,26 @@ function validateResponse(content: string, context: SearchContext): boolean {
   return true;
 }
 
-async function fetchFromPerplexityWithValidation(
-  prompt: string,
-  context: SearchContext
-): Promise<string> {
+async function fetchFromPerplexityWithValidation(prompt: string, context: SearchContext): Promise<string> {
   let response = await fetchFromPerplexity(prompt);
   if (!validateResponse(response, context)) {
     const enhancedPrompt = `
 ${prompt}
 
 CRITICAL REQUIREMENTS:
-1. Focus ONLY on the individual: ${context.query}
-${context.company ? `2. Discuss only their work at: ${context.company}` : ''}
-${context.title ? `3. Focus on their role as: ${context.title}` : ''}
+1. Focus ONLY on ${context.query}
+${context.company ? `2. Discuss only their work at ${context.company}` : ''}
+${context.title ? `3. Focus on their role as ${context.title}` : ''}
 4. Do NOT discuss or reference any other individuals or companies.
-5. Use ONLY information that can be verified from the provided data.
-
-If unsure, say so rather than including unverified details.
-`;
+5. Use ONLY verifiable information.
+If unsure, state so rather than including unverified details.
+    `;
     console.log('Retrying with enhanced prompt due to validation failure.');
     response = await fetchFromPerplexity(enhancedPrompt);
   }
   return response;
 }
+
 /* --------------------
    ZOD SCHEMA & ROUTE
 -------------------- */
@@ -348,46 +294,36 @@ const requestSchema = z.object({
     company: z.string().optional(),
     title: z.string().optional(),
     linkedinUrl: z.string().optional(),
-    websiteUrl: z.string().optional(),  // Website URL field
+    websiteUrl: z.string().optional(),
   }).optional(),
   disambiguate: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
   try {
-    console.log('--- New Search Request ---');
-    // Authentication and usage checks
+    // --- Authentication & Usage Checks ---
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    if (!session?.user?.email) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     if (!canProceedWithUsage(user)) {
-      return NextResponse.json(
-        {
-          error: 'Trial limit reached. Please subscribe to continue using VC Vantage.',
-          trialLimitReached: true,
-          usageCount: user.trialUsageCount,
-        },
-        { status: 402 }
-      );
+      return NextResponse.json({
+        error: 'Trial limit reached. Please subscribe to continue using VC Vantage.',
+        trialLimitReached: true,
+        usageCount: user.trialUsageCount,
+      }, { status: 402 });
     }
 
-    // Parse request
+    // --- Request Parsing ---
     const body = await req.json();
     const { query, type, context, disambiguate } = requestSchema.parse(body);
     const sanitizedQuery = query.trim();
-    if (!sanitizedQuery) {
-      return NextResponse.json({ error: 'Query is required.' }, { status: 400 });
-    }
+    if (!sanitizedQuery) return NextResponse.json({ error: 'Query is required.' }, { status: 400 });
     let refinedQuery = sanitizedQuery;
     if (context?.company) refinedQuery += ` at ${context.company}`;
     if (context?.title) refinedQuery += `, ${context.title}`;
 
-    // Disambiguation (if requested)
+    // --- Disambiguation if requested ---
     if (disambiguate) {
       console.log('Performing disambiguation...');
       const disambiguationPrompt = `
@@ -398,42 +334,37 @@ Respond in a short, plain-text list format like:
 1. ...
 2. ...
 3. ...
-No disclaimers or extra text. Just the list of possible matches.
+No disclaimers or extra text.
 If no strong matches, return fewer items or an empty list.
-`;
+      `;
       const rawString = await analyzeWithO1(disambiguationPrompt);
       console.log('Disambiguation raw response:', rawString);
-      const lines = rawString
-        .split('\n')
-        .map((l) => l.replace(/^\d+\.\s*/, '').trim())
-        .filter(Boolean);
+      const lines = rawString.split('\n').map(l => l.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
       console.log('Disambiguation suggestions:', lines);
       return NextResponse.json({ suggestions: lines });
     }
 
-    // Check cache
+    // --- Cache Check ---
     const cacheKey = `${type}:${refinedQuery}`;
     if (cache.has(cacheKey)) {
       console.log('Cache hit for key:', cacheKey);
       return NextResponse.json(cache.get(cacheKey));
     }
 
-    // Fetch LinkedIn data if applicable
-    let linkedInJSON = null;
+    // --- Data Gathering ---
+    let linkedInJSON: IProxycurlProfile | null = null;
     if (type === 'people' && context?.linkedinUrl) {
       linkedInJSON = await fetchProxycurlData(context.linkedinUrl);
     }
-
-    // Format official LinkedIn snippet
     const officialLinkedInData = formatLinkedInData(linkedInJSON || {}, refinedQuery);
 
-    // Extract and expand on custom domains
     let siteExpansionsText = '';
     if (linkedInJSON) {
       const relevantSites = extractRelevantWebsitesFromProfile(linkedInJSON);
       if (relevantSites.length > 0) {
         const expansions: string[] = [];
         for (const domain of relevantSites) {
+          console.log(`Expanding domain: ${domain}`);
           const sitePrompt = `
 We have discovered a domain: "${domain}"
 It is associated with ${refinedQuery}'s background from LinkedIn. 
@@ -447,9 +378,9 @@ Ignore unrelated references.
       }
     }
 
-    // Website disambiguation step
     let websiteDisambiguationText = '';
     if (context?.websiteUrl) {
+      console.log(`Disambiguating website: ${context.websiteUrl}`);
       const websitePrompt = `
 We have a website: "${context.websiteUrl}" 
 associated with ${refinedQuery}. 
@@ -458,13 +389,11 @@ Please provide any relevant corporate information, controversies, or context reg
       websiteDisambiguationText = await fetchFromPerplexity(websitePrompt);
     }
 
-    // Negative corporate information prompt
     const negativeInfoPrompt = `
 Is there any negative corporate information relating to ${refinedQuery} or its affiliated entities?
     `;
     const negativeInfo = await fetchFromPerplexity(negativeInfoPrompt);
 
-    // Combine snippets
     const combinedSnippet = `
 [OFFICIAL LINKEDIN SNIPPET]
 ${officialLinkedInData}
@@ -479,9 +408,6 @@ ${websiteDisambiguationText || 'No additional website information found.'}
 ${negativeInfo || 'No negative information found.'}
     `.trim();
 
-    /* --------------------
-       BASE PROMPTS
-    -------------------- */
     const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
       people: {
         overview: `Provide an overview of ${refinedQuery}'s professional background focusing on their current role at ${context?.company || 'their company'}. Use ONLY the LinkedIn data provided.`,
@@ -529,6 +455,39 @@ ${basePrompts[type].financial}
     ]);
 
     /* --------------------
+       STRATEGIC ANALYSIS
+    -------------------- */
+    const patternAnalysisPrompt = `
+Analyze the following verified information exclusively about ${refinedQuery}:
+Overview: ${overview}
+Market Analysis: ${marketAnalysis}
+Financial Analysis: ${financialAnalysis}
+
+### TASK
+1. Identify non-obvious patterns, hidden risks, and opportunities concerning ${refinedQuery}.
+2. Assess how different aspects interrelate.
+Focus on generating insights without repeating information.
+    `;
+    console.log('Starting pattern analysis...');
+    const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
+    console.log('Pattern analysis complete.');
+
+    const strategicAnalysisPrompt = `
+Based on the verified information and pattern analysis for ${refinedQuery}:
+${patternAnalysis}
+
+### TASK
+Provide a comprehensive strategic analysis focusing on ${refinedQuery}: 
+- Leadership impact 
+- Growth trajectory
+- Risk-opportunity matrix
+Offer specific, actionable insights.
+    `;
+    console.log('Starting strategic analysis...');
+    const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
+    console.log('Strategic analysis complete.');
+
+    /* --------------------
        COMPOUNDING & FINAL SYNTHESIS
     -------------------- */
     const compilationPrompt = `
@@ -543,6 +502,9 @@ ${marketAnalysis}
 Financial Analysis:
 ${financialAnalysis}
 
+Strategic Analysis:
+${strategicAnalysis}
+
 ### TASK
 Based on the above data, create a concise executive brief for ${refinedQuery} that includes:
 - A brief summary (under 150 words)
@@ -550,15 +512,14 @@ Based on the above data, create a concise executive brief for ${refinedQuery} th
 
 Focus on key insights, potential risks, opportunities, and controversies. Provide concrete and actionable outputs.
     `;
+    console.log('Generating final synthesis...');
     const finalSynthesis = await analyzeWithO1(compilationPrompt);
+    console.log('Final synthesis complete.');
 
-    // Parse final synthesis to separate summary and questions
     let summary = '';
     let keyQuestions: string[] = [];
     const parts = finalSynthesis.split(/(?=Questions:|Key Questions:)/i);
-    if (parts[0]) {
-      summary = parts[0].trim();
-    }
+    if (parts[0]) summary = parts[0].trim();
     if (parts[1]) {
       const questionsText = parts[1];
       keyQuestions = questionsText
@@ -569,21 +530,27 @@ Focus on key insights, potential risks, opportunities, and controversies. Provid
         .slice(0, 5);
     }
 
-    const results: AnalysisResults = { summary, keyQuestions };
+    const results: AnalysisResults = {
+      overview,
+      marketAnalysis,
+      financialAnalysis,
+      strategicAnalysis,
+      summary,
+      keyQuestions
+    };
 
     const usageResult = await checkAndUpdateUsage(user.id);
     if (!usageResult.canProceed) {
-      return NextResponse.json(
-        {
-          error: usageResult.error,
-          usageCount: usageResult.usageCount,
-          limit: usageResult.limit,
-        },
-        { status: 402 }
-      );
+      console.log('Usage limit exceeded after processing.');
+      return NextResponse.json({
+        error: usageResult.error,
+        usageCount: usageResult.usageCount,
+        limit: usageResult.limit,
+      }, { status: 402 });
     }
 
     cache.set(cacheKey, results);
+    console.log('Caching results and sending response.');
     return NextResponse.json(results);
 
   } catch (error) {
