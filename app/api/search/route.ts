@@ -197,8 +197,14 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'llama-3.1-sonar-large-128k-online',
+      model: 'sonar-pro',  // Use the new sonar-pro model
       messages: [{ role: 'user', content: prompt }],
+      frequency_penalty: 1,  // Optional: adjust parameters as needed
+      temperature: 0.2,
+      top_p: 0.9,
+      top_k: 0,
+      stream: false,
+      presence_penalty: 0
     }),
   });
   if (!response.ok) {
@@ -212,6 +218,7 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   console.log('Received response from Perplexity.');
   return content;
 }
+
 
 async function analyzeWithO1(prompt: string): Promise<string> {
   console.log('Sending prompt to OpenAI O1:', prompt.slice(0, 100) + '...');
