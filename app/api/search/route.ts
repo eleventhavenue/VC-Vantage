@@ -41,10 +41,6 @@ function removeCitations(text: string): string {
    INTERFACES
 -------------------- */
 interface AnalysisResults {
-  overview: string;
-  marketAnalysis: string;
-  financialAnalysis: string;
-  strategicAnalysis: string;
   summary: string;
   keyQuestions: string[];
 }
@@ -342,20 +338,18 @@ If unsure, say so rather than including unverified details.
   }
   return response;
 }
-
 /* --------------------
    ZOD SCHEMA & ROUTE
 -------------------- */
 const requestSchema = z.object({
   query: z.string().min(1).max(500),
   type: z.enum(['people', 'company']),
-  context: z
-    .object({
-      company: z.string().optional(),
-      title: z.string().optional(),
-      linkedinUrl: z.string().optional(),
-    })
-    .optional(),
+  context: z.object({
+    company: z.string().optional(),
+    title: z.string().optional(),
+    linkedinUrl: z.string().optional(),
+    websiteUrl: z.string().optional(),  // Website URL field
+  }).optional(),
   disambiguate: z.boolean().optional(),
 });
 
@@ -365,16 +359,13 @@ export async function POST(req: Request) {
     // Authentication and usage checks
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      console.log('Authentication required.');
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) {
-      console.log('User not found.');
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     if (!canProceedWithUsage(user)) {
-      console.log('Usage limit reached.');
       return NextResponse.json(
         {
           error: 'Trial limit reached. Please subscribe to continue using VC Vantage.',
@@ -387,7 +378,6 @@ export async function POST(req: Request) {
 
     // Parse request
     const body = await req.json();
-    console.log('Request body:', body);
     const { query, type, context, disambiguate } = requestSchema.parse(body);
     const sanitizedQuery = query.trim();
     if (!sanitizedQuery) {
@@ -396,8 +386,6 @@ export async function POST(req: Request) {
     let refinedQuery = sanitizedQuery;
     if (context?.company) refinedQuery += ` at ${context.company}`;
     if (context?.title) refinedQuery += `, ${context.title}`;
-
-    console.log('Refined Query:', refinedQuery);
 
     // Disambiguation (if requested)
     if (disambiguate) {
@@ -431,24 +419,21 @@ If no strong matches, return fewer items or an empty list.
     }
 
     // Fetch LinkedIn data if applicable
-    let linkedInJSON: IProxycurlProfile | null = null;
+    let linkedInJSON = null;
     if (type === 'people' && context?.linkedinUrl) {
       linkedInJSON = await fetchProxycurlData(context.linkedinUrl);
     }
 
     // Format official LinkedIn snippet
     const officialLinkedInData = formatLinkedInData(linkedInJSON || {}, refinedQuery);
-    console.log('Official LinkedIn data formatted.');
 
     // Extract and expand on custom domains
     let siteExpansionsText = '';
     if (linkedInJSON) {
       const relevantSites = extractRelevantWebsitesFromProfile(linkedInJSON);
-      console.log('Relevant sites extracted:', relevantSites);
       if (relevantSites.length > 0) {
         const expansions: string[] = [];
         for (const domain of relevantSites) {
-          console.log(`Expanding domain: ${domain}`);
           const sitePrompt = `
 We have discovered a domain: "${domain}"
 It is associated with ${refinedQuery}'s background from LinkedIn. 
@@ -462,107 +447,69 @@ Ignore unrelated references.
       }
     }
 
-    // Combine official snippet with domain expansions
+    // Website disambiguation step
+    let websiteDisambiguationText = '';
+    if (context?.websiteUrl) {
+      const websitePrompt = `
+We have a website: "${context.websiteUrl}" 
+associated with ${refinedQuery}. 
+Please provide any relevant corporate information, controversies, or context regarding this website in relation to ${refinedQuery}.
+      `;
+      websiteDisambiguationText = await fetchFromPerplexity(websitePrompt);
+    }
+
+    // Negative corporate information prompt
+    const negativeInfoPrompt = `
+Is there any negative corporate information relating to ${refinedQuery} or its affiliated entities?
+    `;
+    const negativeInfo = await fetchFromPerplexity(negativeInfoPrompt);
+
+    // Combine snippets
     const combinedSnippet = `
 [OFFICIAL LINKEDIN SNIPPET]
 ${officialLinkedInData}
 
 [ADDITIONAL DOMAIN EXPANSIONS]
 ${siteExpansionsText || 'No custom domains or expansions found.'}
-`.trim();
-    console.log('Combined snippet prepared.');
+
+[WEBSITE DISAMBIGUATION]
+${websiteDisambiguationText || 'No additional website information found.'}
+
+[NEGATIVE CORPORATE INFORMATION]
+${negativeInfo || 'No negative information found.'}
+    `.trim();
 
     /* --------------------
        BASE PROMPTS
     -------------------- */
     const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
       people: {
-        overview: `# Results for: ${refinedQuery}
-
-## Overview
-
-### Task
-Provide a well-structured overview of ${refinedQuery}'s professional background, 
-focusing on their current role at ${context?.company || 'their company'}.
-
-IMPORTANT: Focus ONLY on the individual from the LinkedIn data provided above. 
-Ignore any other people with similar names.`,
-        market: `## Market Analysis
-
-Analyze the specific market environment where ${refinedQuery} operates at ${context?.company || 'their company'}.
-Include:
-1. The specific sector(s) where they operate
-2. Key competitors in their space
-3. Relevant industry trends
-4. Growth opportunities and challenges
-
-IMPORTANT: Focus ONLY on the markets relevant to ${refinedQuery}'s current role 
-and recent experiences shown in the LinkedIn data above. 
-Do not discuss other individuals or unrelated markets.`,
-        financial: `## Financial Analysis
-
-Analyze any available financial information related to ${refinedQuery}'s ventures,
-particularly their work at ${context?.company || 'their company'}.
-Include:
-1. Any known funding or revenue information
-2. Business model insights
-3. Growth metrics if available
-4. Financial opportunities and challenges
-
-IMPORTANT: Only discuss financial aspects directly related to ${refinedQuery}
-and their verified companies from the LinkedIn data above.
-`
+        overview: `Provide an overview of ${refinedQuery}'s professional background focusing on their current role at ${context?.company || 'their company'}. Use ONLY the LinkedIn data provided.`,
+        market: `Analyze the market environment for ${refinedQuery} at ${context?.company || 'the company'}, including competitors, industry trends, and growth challenges.`,
+        financial: `Evaluate any available financial information related to ${refinedQuery}'s ventures, especially at ${context?.company || 'the company'}.`
       },
       company: {
-        overview: `# Results for: ${refinedQuery}
-
-## Overview
-
-### Task
-Provide a thorough overview of the company, ${refinedQuery}, covering:
-1. Its industry focus
-2. Key products or services
-3. Founding year, location, and key team members
-4. Any unique market positioning or value proposition
-5. Recent milestones or developments
-`,
-        market: `## Market Analysis
-
-### Task
-Discuss the broader market in which ${refinedQuery} competes.
-Cover:
-1. The company's main competitors
-2. Market trends shaping the sector
-3. Potential growth opportunities or threats
-4. Leadership influence on market position
-`,
-        financial: `## Financial Analysis
-
-### Task
-Evaluate the company's financial posture.
-Include:
-1. Funding history and investment strategy (if available)
-2. Revenue models and profit margins (if known)
-3. Recent funding rounds or partnerships
-4. Key financial challenges or risks
-5. Indicators of overall financial health
-`
+        overview: `Provide a thorough overview of the company ${refinedQuery}, including industry focus, key products/services, founding year, location, team members, and recent developments.`,
+        market: `Discuss the broader market in which ${refinedQuery} competes, including main competitors, market trends, and growth opportunities or threats.`,
+        financial: `Evaluate the financial posture of ${refinedQuery}, including funding history, revenue models, recent funding rounds, and key financial challenges.`
       },
     };
 
-    /* --------------------
-       BUILDING PROMPTS
-    -------------------- */
     const overviewPrompt = `
-[IMPORTANT] Use the official data below as primary truth about ${refinedQuery}.
-Ignore conflicting references.
-
+Use the data below as the primary source of truth for ${refinedQuery}:
 ${combinedSnippet}
-
 ${basePrompts[type].overview}
-`;
-    const marketPrompt = basePrompts[type].market;
-    const financialPrompt = basePrompts[type].financial;
+    `;
+    const marketPrompt = `
+Use the data below as the primary source of truth for ${refinedQuery}:
+${combinedSnippet}
+${basePrompts[type].market}
+    `;
+    const financialPrompt = `
+Use the data below as the primary source of truth for ${refinedQuery}:
+${combinedSnippet}
+${basePrompts[type].financial}
+    `;
 
     const searchContext: SearchContext = {
       query: refinedQuery,
@@ -573,91 +520,59 @@ ${basePrompts[type].overview}
     };
 
     /* --------------------
-       FETCHING RESPONSES WITH VALIDATION
+       FETCHING MULTIPLE ANALYSES
     -------------------- */
-    console.log('Fetching overview, market, and financial analysis from Perplexity...');
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
       fetchFromPerplexityWithValidation(overviewPrompt, searchContext),
       fetchFromPerplexityWithValidation(marketPrompt, searchContext),
       fetchFromPerplexityWithValidation(financialPrompt, searchContext)
     ]);
-    console.log('Fetched analysis sections.');
 
-    // Pattern recognition
-    const patternAnalysisPrompt = `
-Analyze the following verified information exclusively about ${refinedQuery}:
+    /* --------------------
+       COMPOUNDING & FINAL SYNTHESIS
+    -------------------- */
+    const compilationPrompt = `
+We have gathered the following verified information about ${refinedQuery}:
+
+Overview:
 ${overview}
+
+Market Analysis:
 ${marketAnalysis}
+
+Financial Analysis:
 ${financialAnalysis}
 
-### Task
-1. Identify non-obvious patterns, relationships, or hidden risks/opportunities concerning only ${refinedQuery}.
-2. Assess how everything interrelates, focusing solely on ${refinedQuery}.
-Focus on generating insights without merely restating the above.
-`.trim();
-    console.log('Starting pattern analysis...');
-    const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
-    console.log('Pattern analysis complete.');
+### TASK
+Based on the above data, create a concise executive brief for ${refinedQuery} that includes:
+- A brief summary (under 150 words)
+- 5 specific, actionable questions for investors
 
-    // Strategic analysis
-    const strategicAnalysisPrompt = `
-Based on the verified information and pattern analysis for ${refinedQuery}:
-${patternAnalysis}
+Focus on key insights, potential risks, opportunities, and controversies. Provide concrete and actionable outputs.
+    `;
+    const finalSynthesis = await analyzeWithO1(compilationPrompt);
 
-### Task
-Provide a comprehensive strategic analysis focusing exclusively on ${refinedQuery}: 
-- Leadership impact 
-- Growth trajectory
-- Risk-opportunity matrix
-Offer specific, actionable insights, and do not discuss other individuals.
-`.trim();
-    console.log('Starting strategic analysis...');
-    const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
-    console.log('Strategic analysis complete.');
-
-    // Final synthesis
-    const finalSynthesisPrompt = `
-Create an executive brief based on the analysis of ${refinedQuery}:
-${strategicAnalysis}
-
-### Deliverables
-1. A concise executive summary
-2. Five specific questions for investors
-All insights must be concrete & actionable.
-`.trim();
-    console.log('Generating final synthesis...');
-    const finalSynthesis = await analyzeWithO1(finalSynthesisPrompt);
-    console.log('Final synthesis complete.');
-
-    // Parse final output
+    // Parse final synthesis to separate summary and questions
     let summary = '';
     let keyQuestions: string[] = [];
-    const parts = finalSynthesis.split(/(?=Questions:|Key Questions:|Strategic Questions:)/i);
+    const parts = finalSynthesis.split(/(?=Questions:|Key Questions:)/i);
     if (parts[0]) {
-      summary = parts[0].replace(/(?:Summary|Executive Summary|Brief):/i, '').trim();
+      summary = parts[0].trim();
     }
     if (parts[1]) {
-      const questionsText = parts[1].replace(/(?:Questions|Key Questions|Strategic Questions):/i, '');
+      const questionsText = parts[1];
       keyQuestions = questionsText
         .split(/(?:\d+\.|\n-|\n\*)\s+/)
-        .filter((q) => q.trim())
-        .map((q) => q.trim())
-        .filter((q) => q.endsWith('?'))
+        .filter(q => q.trim())
+        .map(q => q.trim())
+        .filter(q => q.endsWith('?'))
         .slice(0, 5);
     }
 
-    const results: AnalysisResults = {
-      overview,
-      marketAnalysis,
-      financialAnalysis,
-      strategicAnalysis,
-      summary,
-      keyQuestions,
-    };
+    const results: AnalysisResults = { summary, keyQuestions };
 
     const usageResult = await checkAndUpdateUsage(user.id);
     if (!usageResult.canProceed) {
-      console.log('Usage limit exceeded after processing.');
       return NextResponse.json(
         {
           error: usageResult.error,
@@ -669,7 +584,6 @@ All insights must be concrete & actionable.
     }
 
     cache.set(cacheKey, results);
-    console.log('Caching results and sending response.');
     return NextResponse.json(results);
 
   } catch (error) {
