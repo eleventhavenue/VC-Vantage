@@ -6,6 +6,7 @@ import { motion, AnimatePresence, useAnimation } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronRight } from "lucide-react"
+import FloatingElements from "@/components/FloatingElements" // Import the component
 
 export default function Page() {
   const [email, setEmail] = useState("")
@@ -107,7 +108,7 @@ export default function Page() {
         >
           Giving Angel Investors the{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-600 relative">
-          &quot;VC Vantage&quot;
+            &quot;VC Vantage&quot;
             <motion.span className="absolute -inset-1 bg-blue-500 opacity-20 rounded-lg blur" animate={controls} />
           </span>
         </motion.h1>
@@ -170,29 +171,7 @@ export default function Page() {
       </main>
 
       {/* Floating Elements Animation */}
-      {[...Array(10)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute hidden md:block w-4 h-4 bg-blue-500 rounded-full"
-          initial={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
-            scale: 0,
-          }}
-          animate={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
-            scale: [0, 1, 0],
-          }}
-          transition={{
-            duration: Math.random() * 5 + 5,
-            repeat: Number.POSITIVE_INFINITY,
-            repeatType: "loop",
-            ease: "easeInOut",
-          }}
-        />
-      ))}
+      <FloatingElements /> {/* Use the FloatingElements component here */}
     </div>
   )
 }
-
