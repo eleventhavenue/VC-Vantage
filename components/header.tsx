@@ -4,7 +4,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Download, Share2, Mail } from "lucide-react"
+import { Share2, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -150,10 +150,6 @@ export function Header() {
           <Button variant="outline" size="sm" onClick={handleShare}>
             <Share2 className="mr-2 h-4 w-4" />
             Share
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" />
-            Download PDF
           </Button>
         </div>
       </div>

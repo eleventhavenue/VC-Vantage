@@ -31,13 +31,13 @@ const BASIC_AUTH = encodeBasicAuth(BASIC_AUTH_USERNAME, BASIC_AUTH_PASSWORD);
 
 // Define paths to exclude from Basic Auth
 const excludedPaths = [
-  /^\/$/,             // Exclude the homepage
-  /^\/reports\CSTAINABLE\/?$/, // Exclude the CSTAINABLE reports page
-  /^\/api\/auth\/.*/, // Exclude all auth API routes
-  /^\/_next\/.*/,     // Exclude Next.js internal routes
-  /^\/favicon\.ico$/, // Exclude favicon
-  /^\/static\/.*/,    // Exclude static files
-  /^\/public\/.*/,    // Exclude public assets
+  /^\/$/,                       // Exclude the homepage
+  /^\/reports\/CSTAINABLE\/?$/i, // Correctly exclude the CSTAINABLE reports page (case-insensitive)
+  /^\/api\/auth\/.*/,           // Exclude all auth API routes
+  /^\/_next\/.*/,               // Exclude Next.js internal routes
+  /^\/favicon\.ico$/,           // Exclude favicon
+  /^\/static\/.*/,              // Exclude static files
+  /^\/public\/.*/,              // Exclude public assets
   // Add more paths if needed
 ];
 
@@ -51,6 +51,7 @@ export function middleware(req: NextRequest) {
     // Redirect to production domain
     const url = req.nextUrl.clone();
     url.host = 'www.vc-vantage.com'; // Change to 'vc-vantage.com' if you prefer
+    console.log(`Redirecting to production domain: ${url.href}`);
     return NextResponse.redirect(url);
   }
 
@@ -58,12 +59,16 @@ export function middleware(req: NextRequest) {
   // Check if the request path is excluded
   const isExcluded = excludedPaths.some((regex) => regex.test(pathname));
 
+  console.log(`Requested Path: ${pathname}`);
+  console.log(`Is path excluded: ${isExcluded}`);
+
   if (isExcluded) {
     return NextResponse.next();
   }
 
   // Get the Authorization header
   const authHeader = req.headers.get('authorization');
+  console.log(`Authorization Header: ${authHeader}`);
 
   // If Authorization header matches, allow the request
   if (authHeader === BASIC_AUTH) {
@@ -71,13 +76,13 @@ export function middleware(req: NextRequest) {
   }
 
   // Otherwise, return a 401 response prompting for credentials
-  const response = new NextResponse('Authentication required', {
+  console.log('Authentication required. Sending 401 response.');
+  return new NextResponse('Authentication required', {
     status: 401,
     headers: {
       'WWW-Authenticate': 'Basic realm="Secure Area"',
     },
   });
-  return response;
 }
 
 // Specify the paths where the middleware should run

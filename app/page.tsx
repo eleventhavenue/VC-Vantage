@@ -75,7 +75,7 @@ export default function Page() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            Giving Angel Investors the{" "}
+            Giving Angel Investors the {" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">
               VC Vantage
             </span>
@@ -109,7 +109,7 @@ export default function Page() {
               {message && <p className="text-green-600">{message}</p>}
               {error && <p className="text-red-600">{error}</p>}
               <Button type="submit" size="lg" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                {isLoading ? 'Submitting...' : 'Get Started'} <ChevronRight className="ml-2 h-4 w-4" />
+                {isLoading ? 'Submitting...' : 'Sign Up Now'} <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </form>
           </motion.div>
