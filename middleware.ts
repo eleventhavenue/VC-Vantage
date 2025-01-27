@@ -31,13 +31,13 @@ const BASIC_AUTH = encodeBasicAuth(BASIC_AUTH_USERNAME, BASIC_AUTH_PASSWORD);
 
 // Define paths to exclude from Basic Auth
 const excludedPaths = [
-  /^\/$/,                       // Exclude the homepage
-  /^\/reports\/CSTAINABLE\/?$/i, // Correctly exclude the CSTAINABLE reports page (case-insensitive)
-  /^\/api\/auth\/.*/,           // Exclude all auth API routes
-  /^\/_next\/.*/,               // Exclude Next.js internal routes
-  /^\/favicon\.ico$/,           // Exclude favicon
-  /^\/static\/.*/,              // Exclude static files
-  /^\/public\/.*/,              // Exclude public assets
+  /^\/$/,                                   // Exclude the homepage
+  /^\/reports\/CSTAINABLE(?:\/|$)/i,        // Exclude /reports/CSTAINABLE and its subpaths
+  /^\/api\/auth\/.*/,                       // Exclude all auth API routes
+  /^\/_next\/.*/,                           // Exclude Next.js internal routes
+  /^\/favicon\.ico$/,                       // Exclude favicon
+  /^\/static\/.*/,                          // Exclude static files
+  /^\/public\/.*/,                          // Exclude public assets
   // Add more paths if needed
 ];
 
@@ -85,7 +85,7 @@ export function middleware(req: NextRequest) {
   });
 }
 
-// Specify the paths where the middleware should run
+// Updated config with proper matcher pattern
 export const config = {
-  matcher: ['/((?!api|_next|favicon.ico|static|public).*)'],
+  matcher: '/:path*',
 };

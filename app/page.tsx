@@ -1,152 +1,198 @@
-// app/page.tsx
-
 "use client"
 
-import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence, useAnimation } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronRight, LineChart, Shield, Zap } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 
 export default function Page() {
   const [email, setEmail] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const controls = useAnimation()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setMessage(null)
-    setError(null)
-
-    try {
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setMessage(data.message)
-        setEmail('')
-      } else {
-        setError(data.message || 'Something went wrong.')
-      }
-    } catch (err) {
-      console.error('Error submitting sign-up:', err)
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
+    console.log("Email submitted:", email)
+    setIsSubmitted(true)
+    setTimeout(() => setIsSubmitted(false), 3000)
   }
+
+  useEffect(() => {
+    controls.start({
+      y: [0, -10, 0],
+      transition: { duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+    })
+  }, [controls])
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-50 via-slate-50 to-stone-50">
-      {/* Background Patterns */}
-      <div className="absolute inset-0 bg-grid-slate-200 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
+      {/* Mountain Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <svg
+          className="absolute w-full h-full"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 1440 800"
+          preserveAspectRatio="xMidYMid slice"
+        >
+          <defs>
+            <linearGradient id="mountain-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="rgba(59, 130, 246, 0.1)" />
+              <stop offset="100%" stopColor="rgba(16, 185, 129, 0.1)" />
+            </linearGradient>
+          </defs>
+          <g className="mountains">
+            <path d="M0 800L360 500L720 650L1080 400L1440 800" fill="url(#mountain-gradient)">
+              <animate
+                attributeName="d"
+                values="
+                  M0 800L360 500L720 650L1080 400L1440 800;
+                  M0 800L360 600L720 500L1080 600L1440 800;
+                  M0 800L360 500L720 650L1080 400L1440 800"
+                dur="20s"
+                repeatCount="indefinite"
+              />
+            </path>
+            <path d="M0 800L360 600L720 700L1080 550L1440 800" fill="url(#mountain-gradient)" opacity="0.7">
+              <animate
+                attributeName="d"
+                values="
+                  M0 800L360 600L720 700L1080 550L1440 800;
+                  M0 800L360 650L720 600L1080 700L1440 800;
+                  M0 800L360 600L720 700L1080 550L1440 800"
+                dur="25s"
+                repeatCount="indefinite"
+              />
+            </path>
+            <path d="M0 800L360 700L720 800L1080 700L1440 800" fill="url(#mountain-gradient)" opacity="0.5">
+              <animate
+                attributeName="d"
+                values="
+                  M0 800L360 700L720 800L1080 700L1440 800;
+                  M0 800L360 750L720 700L1080 750L1440 800;
+                  M0 800L360 700L720 800L1080 700L1440 800"
+                dur="30s"
+                repeatCount="indefinite"
+              />
+            </path>
+          </g>
+        </svg>
+      </div>
 
       {/* Navigation */}
       <nav className="relative z-10 container mx-auto px-4 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-        <Link href="/" className="flex items-center space-x-2">
+        <motion.div
+          className="flex items-center gap-2"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+        >
           <Image
             src="/vcvantage.png"
             alt="VC Vantage Logo"
-            width={240}
-            height={80}
-            className="h-8 w-auto"
-            />
-          </Link>
-        </div>
-        
+            width={120}
+            height={40}
+          />
+        </motion.div>
       </nav>
 
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-4 pt-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.h1
-            className="text-5xl md:text-6xl font-bold text-slate-900 mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            Giving Angel Investors the {" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">
-              VC Vantage
-            </span>
-          </motion.h1>
+      <main className="relative z-10 container mx-auto px-4 pt-20 pb-20 flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
+        <motion.h1
+          className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 text-center max-w-4xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          Giving Angel Investors the{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-600 relative">
+          &quot;VC Vantage&quot;
+            <motion.span className="absolute -inset-1 bg-blue-500 opacity-20 rounded-lg blur" animate={controls} />
+          </span>
+        </motion.h1>
 
-          <motion.p
-            className="text-xl text-slate-600 mb-12 max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            VC Vantage is the AI-powered research tool that transforms due diligence with fast, accurate, and
-            comprehensive insights.
-          </motion.p>
+        <motion.p
+          className="text-xl text-slate-600 mb-12 text-center max-w-2xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          Stay ahead of the curve. Sign up for exclusive updates on our beta launch and the latest in AI-powered
+          investment insights.
+        </motion.p>
 
-          <motion.div
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <form onSubmit={handleSubmit} className="flex-1 sm:max-w-md flex flex-col gap-2">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                className="h-12 bg-white/80 backdrop-blur-sm border-slate-200"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              {message && <p className="text-green-600">{message}</p>}
-              {error && <p className="text-red-600">{error}</p>}
-              <Button type="submit" size="lg" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                {isLoading ? 'Submitting...' : 'Sign Up Now'} <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </form>
-          </motion.div>
+        <motion.div
+          className="w-full max-w-md mb-16"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <form onSubmit={handleSubmit} className="relative">
+            <Input
+              type="email"
+              placeholder="Enter your email"
+              className="h-14 bg-white/80 backdrop-blur-sm border-slate-200 pl-4 pr-32 text-lg"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Button type="submit" size="lg" className="absolute right-1 top-1 bg-blue-600 hover:bg-blue-700">
+              Join Waitlist <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </form>
+          <AnimatePresence>
+            {isSubmitted && (
+              <motion.p
+                className="text-green-600 mt-2 text-center"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                Thank you for joining our waitlist!
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
-          {/* Feature Icons */}
-          <motion.div
-            className="grid grid-cols-3 gap-8 max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
-                <Zap className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="text-sm text-slate-600">AI-Powered Analysis</p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
-                <LineChart className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="text-sm text-slate-600">Comprehensive Insights</p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
-                <Shield className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="text-sm text-slate-600">Risk Assessment</p>
-            </div>
-          </motion.div>
-        </div>
+        <motion.div
+          className="bg-white/80 backdrop-blur-sm rounded-xl p-8 shadow-lg max-w-3xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <h2 className="text-3xl font-bold text-blue-600 mb-4 text-center">Intelligent Investing</h2>
+          <p className="text-slate-700 text-center">
+            Diversifying your investment portfolio or wealth is already an intelligent action. But why stop there? VC
+            Vantage elevates your diversification strategy with AI-powered due diligence and comprehensive insights,
+            ensuring each investment not only broadens your portfolio but also maximizes growth and minimizes risk.
+          </p>
+        </motion.div>
       </main>
 
-      {/* Abstract Background Elements */}
-      <div className="absolute top-1/2 -translate-y-1/2 left-0 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
-      <div className="absolute top-1/2 -translate-y-1/2 right-0 w-64 h-64 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-cyan-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
+      {/* Floating Elements Animation */}
+      {[...Array(10)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute hidden md:block w-4 h-4 bg-blue-500 rounded-full"
+          initial={{
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            scale: 0,
+          }}
+          animate={{
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            scale: [0, 1, 0],
+          }}
+          transition={{
+            duration: Math.random() * 5 + 5,
+            repeat: Number.POSITIVE_INFINITY,
+            repeatType: "loop",
+            ease: "easeInOut",
+          }}
+        />
+      ))}
     </div>
   )
 }
+
