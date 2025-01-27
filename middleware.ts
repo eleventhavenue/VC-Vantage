@@ -36,9 +36,9 @@ const excludedPaths = [
   /^\/api\/auth\/.*/,                       // Exclude all auth API routes
   /^\/_next\/.*/,                           // Exclude Next.js internal routes
   /^\/favicon\.ico$/,                       // Exclude favicon
-  /^\/static\/.*/,                          // Exclude static files
-  /^\/public\/.*/,                          // Exclude public assets
-  // Add more paths if needed
+  /\.(png|jpg|jpeg|gif|svg|ico|webp)$/i,     // Exclude all image files
+  /\.(css|js|json|map)$/i,                   // Exclude CSS, JS, JSON, and source maps
+  // Add more patterns if needed
 ];
 
 // Middleware function
