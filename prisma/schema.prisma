@@ -123,3 +123,9 @@ model Feedback {
   feedback  String
   createdAt DateTime @default(now())
 }
+
+model Subscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  subscribedAt DateTime @default(now())
+}

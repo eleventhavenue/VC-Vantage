@@ -1,212 +1,149 @@
 // app/page.tsx
 
-'use client'
+"use client"
 
-import Link from 'next/link' // Import Next.js's Link component
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from "react"
+import Image from "next/image"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ArrowRight, BarChart3, Briefcase, LineChart, Search, Zap } from "lucide-react"
+import { ChevronRight, LineChart, Shield, Zap } from "lucide-react"
 
-export default function Component() {
-  // Define state variables
-  const [email, setEmail] = useState('')
-  const router = useRouter()
+export default function Page() {
+  const [email, setEmail] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  // Handle form submission
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle the email submission (e.g., save to state or send to an API)
-    // Then navigate to the signup page
-    router.push('/auth')
+    setIsLoading(true)
+    setMessage(null)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage(data.message)
+        setEmail('')
+      } else {
+        setError(data.message || 'Something went wrong.')
+      }
+    } catch (err) {
+      console.error('Error submitting sign-up:', err)
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
-  
+
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="px-4 lg:px-6 h-16 flex items-center bg-white shadow-md">
-        <Link className="flex items-center justify-center" href="/">
-          <MountainIcon className="h-6 w-6 text-blue-500" />
-          <span className="ml-2 text-xl font-bold text-blue-600">VC Vantage</span> {/* Made visible */}
-        </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link href="/features" className="text-sm font-medium text-gray-700 hover:underline underline-offset-4">
-            Features
-          </Link>
-          <Link href="/pricing" className="text-sm font-medium text-gray-700 hover:underline underline-offset-4">
-            Pricing
-          </Link>
-          <Link href="/about" className="text-sm font-medium text-gray-700 hover:underline underline-offset-4">
-            About
-          </Link>
-          <Link href="/contact" className="text-sm font-medium text-gray-700 hover:underline underline-offset-4">
-            Contact
-          </Link>
-        </nav>
-      </header>
-      
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-50 via-slate-50 to-stone-50">
+      {/* Background Patterns */}
+      <div className="absolute inset-0 bg-grid-slate-200 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
+
+      {/* Navigation */}
+      <nav className="relative z-10 container mx-auto px-4 py-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/vcvantage.png"
+            alt="VC Vantage Logo"
+            width={120}
+            height={40}
+            className="h-8 w-auto"
+          />
+        </div>
+        
+      </nav>
+
       {/* Main Content */}
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="flex flex-col items-center space-y-6 text-center">
-              <div className="space-y-4">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter text-gray-900">
-                  Your Competitive Edge in Venture Capital
-                </h1>
-                <p className="mx-auto max-w-3xl text-lg text-gray-600 md:text-xl">
-                  VC Vantage is the AI-powered research tool that transforms due diligence with fast, accurate, and
-                  comprehensive insights.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Wrap the "Get Started" button with Link */}
-                <Link href="/auth">
-                  <Button className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200">
-                    Get Started
-                  </Button>
-                </Link>
-                <Button variant="outline" className="flex items-center justify-center px-6 py-3 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition duration-200">
-                  Learn More
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
+      <main className="relative z-10 container mx-auto px-4 pt-20">
+        <div className="max-w-4xl mx-auto text-center">
+          <motion.h1
+            className="text-5xl md:text-6xl font-bold text-slate-900 mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            Giving Angel Investors the{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">
+              VC Vantage
+            </span>
+          </motion.h1>
 
-        {/* Key Features Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-gray-100">
-          <div className="container mx-auto px-4 md:px-6">
-            <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Key Features</h2>
-            <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3">
-              <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
-                <Zap className="h-8 w-8 text-blue-500 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-800">AI-Driven Insights</h3>
-                <p className="mt-2 text-center text-gray-600">
-                  Harness the power of AI to uncover hidden opportunities and risks.
-                </p>
-              </div>
-              <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
-                <LineChart className="h-8 w-8 text-blue-500 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-800">Comprehensive Analytics</h3>
-                <p className="mt-2 text-center text-gray-600">
-                  Deep dive into market trends, financial metrics, and competitive landscapes.
-                </p>
-              </div>
-              <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
-                <Search className="h-8 w-8 text-blue-500 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-800">Smart Search</h3>
-                <p className="mt-2 text-center text-gray-600">
-                  Find relevant information quickly with our intelligent search capabilities.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
+          <motion.p
+            className="text-xl text-slate-600 mb-12 max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            VC Vantage is the AI-powered research tool that transforms due diligence with fast, accurate, and
+            comprehensive insights.
+          </motion.p>
 
-        {/* Redefining Due Diligence Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="grid gap-10 lg:grid-cols-2 items-center">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  Redefining Due Diligence for Venture Capital
-                </h2>
-                <p className="text-lg text-gray-600">
-                  VC Vantage combines cutting-edge AI technology with comprehensive data analysis to provide you with
-                  unparalleled insights. Make informed decisions faster and stay ahead of the competition.
-                </p>
-              </div>
-              <div className="flex justify-center">
-                <BarChart3 className="h-64 w-full text-blue-500" />
-              </div>
-            </div>
-          </div>
-        </section>
+          <motion.div
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <form onSubmit={handleSubmit} className="flex-1 sm:max-w-md flex flex-col gap-2">
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                className="h-12 bg-white/80 backdrop-blur-sm border-slate-200"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              {message && <p className="text-green-600">{message}</p>}
+              {error && <p className="text-red-600">{error}</p>}
+              <Button type="submit" size="lg" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                {isLoading ? 'Submitting...' : 'Get Started'} <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </form>
+          </motion.div>
 
-        {/* Trusted by Leading VC Firms Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-gray-100">
-          <div className="container mx-auto px-4 md:px-6">
-            <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-              Trusted by Leading VC Firms
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 items-center">
-              <Briefcase className="h-12 w-12 mx-auto text-gray-500" />
-              <Briefcase className="h-12 w-12 mx-auto text-gray-500" />
-              <Briefcase className="h-12 w-12 mx-auto text-gray-500" />
-              <Briefcase className="h-12 w-12 mx-auto text-gray-500" />
-            </div>
-          </div>
-        </section>
-
-        {/* Final Section with Form */}
-        <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="flex flex-col items-center space-y-6 text-center">
-              <div className="space-y-4">
-                <h2 className="text-3xl font-bold text-gray-900">
-                  Ready to Transform Your VC Research?
-                </h2>
-                <p className="max-w-3xl text-lg text-gray-600">
-                  Join the future of venture capital research. Sign up now for a free trial and experience the power of
-                  VC Vantage.
-                </p>
+          {/* Feature Icons */}
+          <motion.div
+            className="grid grid-cols-3 gap-8 max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                <Zap className="w-6 h-6 text-blue-600" />
               </div>
-              <div className="w-full max-w-sm">
-                {/* Single Form Element */}
-                <form onSubmit={handleEmailSubmit} className="flex space-x-2">
-                  <Input
-                    className="flex-1"
-                    placeholder="Enter your email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                  <Button type="submit" className="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200">
-                    Get Started
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </form>
-              </div>
+              <p className="text-sm text-slate-600">AI-Powered Analysis</p>
             </div>
-          </div>
-        </section>
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                <LineChart className="w-6 h-6 text-blue-600" />
+              </div>
+              <p className="text-sm text-slate-600">Comprehensive Insights</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                <Shield className="w-6 h-6 text-blue-600" />
+              </div>
+              <p className="text-sm text-slate-600">Risk Assessment</p>
+            </div>
+          </motion.div>
+        </div>
       </main>
-      
-      {/* Footer */}
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 VC Vantage. All rights reserved.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-xs text-gray-700 hover:underline underline-offset-4" href="#">
-            Terms of Service
-          </Link>
-          <Link className="text-xs text-gray-700 hover:underline underline-offset-4" href="#">
-            Privacy
-          </Link>
-        </nav>
-      </footer>
-    </div>
-  )
-}
 
-function MountainIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
-    </svg>
+      {/* Abstract Background Elements */}
+      <div className="absolute top-1/2 -translate-y-1/2 left-0 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
+      <div className="absolute top-1/2 -translate-y-1/2 right-0 w-64 h-64 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-cyan-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
+    </div>
   )
 }

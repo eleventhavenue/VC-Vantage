@@ -31,6 +31,8 @@ const BASIC_AUTH = encodeBasicAuth(BASIC_AUTH_USERNAME, BASIC_AUTH_PASSWORD);
 
 // Define paths to exclude from Basic Auth
 const excludedPaths = [
+  /^\/$/,             // Exclude the homepage
+  /^\/reports\CSTAINABLE\/?$/, // Exclude the CSTAINABLE reports page
   /^\/api\/auth\/.*/, // Exclude all auth API routes
   /^\/_next\/.*/,     // Exclude Next.js internal routes
   /^\/favicon\.ico$/, // Exclude favicon

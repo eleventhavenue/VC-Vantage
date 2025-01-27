@@ -17,6 +17,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
+  icons:{icon: "/vc.png"},
   title: "VC Vantage",
   description: "AI-powered research tool for venture capital.",
 };
