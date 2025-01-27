@@ -1,5 +1,7 @@
 // app/api/search/route.ts
 
+export const maxDuration = 300; // 5 minutes
+
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import LRU from 'lru-cache';
@@ -12,12 +14,6 @@ import { checkAndUpdateUsage } from '@/lib/usage-utils';
 /* -------------------- 
    USAGE & CONSTANTS
 -------------------- */
-
-// Define usage limits
-const TRIAL_LIMIT = 5;
-const MONTHLY_LIMIT = 30;
-
-// Function to check if the user can proceed based on their subscription and usage
 function canProceedWithUsage(user: {
   isSubscribed: boolean;
   trialUsageCount: number;
@@ -27,17 +23,16 @@ function canProceedWithUsage(user: {
     ? user.monthlyUsageCount < MONTHLY_LIMIT
     : user.trialUsageCount < TRIAL_LIMIT;
 }
+const TRIAL_LIMIT = 5;
+const MONTHLY_LIMIT = 30;
 
 /* --------------------
    OPENAI + UTILS
 -------------------- */
-
-// Initialize OpenAI with the API key
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-// Utility function to remove citation brackets like [1], [2], etc.
 function removeCitations(text: string): string {
   return text.replace(/\[\d+\]/g, '');
 }
@@ -45,31 +40,23 @@ function removeCitations(text: string): string {
 /* --------------------
    INTERFACES
 -------------------- */
-
-// Define the structure of the analysis results
 interface AnalysisResults {
   overview: string;
-  overviewConfidence: number;
   marketAnalysis: string;
-  marketConfidence: number;
   financialAnalysis: string;
-  financialConfidence: number;
   strategicAnalysis: string;
   summary: string;
   keyQuestions: string[];
 }
 
-// Define the structure for prompt sets based on entity type
 interface IPromptsSet {
   overview: string;
   market: string;
   financial: string;
 }
-
-// Define types for person or company
 type PersonOrCompany = 'people' | 'company';
 
-// Define date and profile interfaces for LinkedIn data
+/* Date & Profile Interfaces */
 interface IDateObject { day?: number; month?: number; year?: number; }
 interface IExperience { starts_at?: IDateObject; ends_at?: IDateObject | null; title?: string; company?: string; description?: string; location?: string; }
 interface IEducation { starts_at?: IDateObject; ends_at?: IDateObject; degree_name?: string; field_of_study?: string; school?: string; description?: string; }
@@ -82,21 +69,14 @@ interface IProxycurlProfile {
 /* --------------------
    LRU CACHE
 -------------------- */
-
-// Initialize LRU cache with a max of 500 items and a TTL of 1 hour
 const cache = new LRU<string, AnalysisResults>({ max: 500, ttl: 1000 * 60 * 60 });
 
 /* --------------------
    DOMAIN EXTRACTION UTILITIES
 -------------------- */
-
-// Regular expression to extract URLs
 const WEBSITE_REGEX = /\b((https?:\/\/)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\S*))/gi;
-
-// Domains to exclude from extraction
 const EXCLUDED_DOMAINS = ['linkedin.com', 'facebook.com', 'instagram.com', 'twitter.com', 'youtube.com', 'tiktok.com'];
 
-// Function to clean up extracted domain URLs
 function cleanupDomain(raw: string): string {
   let domain = raw.trim();
   domain = domain.replace(/^https?:\/\//i, '');
@@ -105,12 +85,10 @@ function cleanupDomain(raw: string): string {
   return domain;
 }
 
-// Function to check if a domain is excluded
 function isExcludedDomain(domain: string): boolean {
   return EXCLUDED_DOMAINS.some(excluded => domain.includes(excluded));
 }
 
-// Function to extract relevant websites from LinkedIn profile data
 function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[] {
   const foundSites = new Set<string>();
   const fields = [profile.summary, ...(profile.experiences?.map(e => e.description) || [])];
@@ -134,8 +112,6 @@ function extractRelevantWebsitesFromProfile(profile: IProxycurlProfile): string[
 /* --------------------
    DATA FORMATTING
 -------------------- */
-
-// Function to format LinkedIn data into a readable string
 function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
   if (!profile || Object.keys(profile).length === 0) {
     console.log(`No LinkedIn data found for ${name}`);
@@ -166,7 +142,7 @@ function formatLinkedInData(profile: IProxycurlProfile, name: string): string {
           return `• ${degree} in ${field} from ${school} (${startYear} - ${endYear})`;
         })
         .join('\n')
-    : 'No education info.';
+    : 'No education info';
 
   const city = profile.city ?? '';
   const state = profile.state ?? '';
@@ -197,11 +173,8 @@ NOTE: If conflicting data appears elsewhere, disregard it and trust this verifie
 /* --------------------
    API CALLS
 -------------------- */
-
-// Base URL for internal API calls
 const BASE_URL = process.env.BASE_URL || 'https://www.vc-vantage.com';
 
-// Function to fetch LinkedIn data via Proxycurl API
 async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfile | null> {
   console.log(`Fetching Proxycurl data for URL: ${linkedinUrl}`);
   const absoluteUrl = `${BASE_URL}/api/fetchLinkedInProfile?linkedinProfileUrl=${encodeURIComponent(linkedinUrl)}`;
@@ -215,7 +188,6 @@ async function fetchProxycurlData(linkedinUrl: string): Promise<IProxycurlProfil
   return data as IProxycurlProfile;
 }
 
-// Function to fetch data from Perplexity API
 async function fetchFromPerplexity(prompt: string): Promise<string> {
   console.log('Sending prompt to Perplexity:', prompt.slice(0, 100) + '...');
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -225,14 +197,14 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'sonar-pro',  // Use the new sonar-pro model
-      messages: [{ role: 'user', content: prompt }],
-      frequency_penalty: 1,  // Optional: adjust parameters as needed
-      temperature: 0.2,
-      top_p: 0.9,
-      top_k: 0,
-      stream: false,
-      presence_penalty: 0
+      model: "sonar-pro",  // Using their most capable model
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1,    // Very low for maximum consistency and factuality
+      frequency_penalty: 0.3,  // Slight penalty to avoid redundancy while maintaining coherent analysis
+      presence_penalty: 0.1,   // Small value to encourage focused, relevant content
+      top_p: 0.7,         // More restrictive nucleus sampling for higher precision
+      top_k: 40,          // Limit to top 40 most likely tokens for consistency
+      stream: false,      // Get complete response at once
     }),
   });
   if (!response.ok) {
@@ -247,7 +219,7 @@ async function fetchFromPerplexity(prompt: string): Promise<string> {
   return content;
 }
 
-// Function to analyze data using OpenAI's O1 model
+
 async function analyzeWithO1(prompt: string): Promise<string> {
   console.log('Sending prompt to OpenAI O1:', prompt.slice(0, 100) + '...');
   const response = await openai.chat.completions.create({
@@ -266,8 +238,6 @@ async function analyzeWithO1(prompt: string): Promise<string> {
 /* --------------------
    RESPONSE VALIDATION
 -------------------- */
-
-// Define the structure for search context
 interface SearchContext {
   query: string;
   type: PersonOrCompany;
@@ -276,7 +246,6 @@ interface SearchContext {
   linkedInData?: string;
 }
 
-// Function to validate the response content based on context
 function validateResponse(content: string, context: SearchContext): boolean {
   console.log('Validating response for context:', context);
   const searchTerms = [context.query];
@@ -302,7 +271,6 @@ function validateResponse(content: string, context: SearchContext): boolean {
   return true;
 }
 
-// Function to fetch from Perplexity with validation and retry if necessary
 async function fetchFromPerplexityWithValidation(prompt: string, context: SearchContext): Promise<string> {
   let response = await fetchFromPerplexity(prompt);
   if (!validateResponse(response, context)) {
@@ -326,8 +294,6 @@ If unsure, state so rather than including unverified details.
 /* --------------------
    ZOD SCHEMA & ROUTE
 -------------------- */
-
-// Define the schema for incoming requests using Zod
 const requestSchema = z.object({
   query: z.string().min(1).max(500),
   type: z.enum(['people', 'company']),
@@ -340,7 +306,6 @@ const requestSchema = z.object({
   disambiguate: z.boolean().optional(),
 });
 
-// Define the API route handler
 export async function POST(req: Request) {
   try {
     // --- Authentication & Usage Checks ---
@@ -369,9 +334,9 @@ export async function POST(req: Request) {
     if (disambiguate) {
       console.log('Performing disambiguation...');
       const disambiguationPrompt = `
-You are a strict and concise assistant. We have a ${type === 'people' ? 'person' : 'company'} named "${sanitizedQuery}".
+You are a strict and concise assistant. We have a person named "${sanitizedQuery}".
 We also have optional context: Company = "${context?.company || ''}", Title = "${context?.title || ''}".
-Please return up to 3 distinct individuals or entities (by name or identifying info) who match or might be confused with this name/context.
+Please return up to 3 distinct individuals (by name or identifying info) who match or might be confused with this name/context.
 Respond in a short, plain-text list format like:
 1. ...
 2. ...
@@ -400,7 +365,6 @@ If no strong matches, return fewer items or an empty list.
     }
     const officialLinkedInData = formatLinkedInData(linkedInJSON || {}, refinedQuery);
 
-    // Extract relevant websites from LinkedIn profile
     let siteExpansionsText = '';
     if (linkedInJSON) {
       const relevantSites = extractRelevantWebsitesFromProfile(linkedInJSON);
@@ -421,7 +385,6 @@ Ignore unrelated references.
       }
     }
 
-    // Handle website disambiguation if websiteUrl is provided
     let websiteDisambiguationText = '';
     if (context?.websiteUrl) {
       console.log(`Disambiguating website: ${context.websiteUrl}`);
@@ -433,13 +396,11 @@ Please provide any relevant corporate information, controversies, or context reg
       websiteDisambiguationText = await fetchFromPerplexity(websitePrompt);
     }
 
-    // Retrieve any negative corporate information
     const negativeInfoPrompt = `
 Is there any negative corporate information relating to ${refinedQuery} or its affiliated entities?
     `;
     const negativeInfo = await fetchFromPerplexity(negativeInfoPrompt);
 
-    // Combine all gathered snippets
     const combinedSnippet = `
 [OFFICIAL LINKEDIN SNIPPET]
 ${officialLinkedInData}
@@ -454,55 +415,35 @@ ${websiteDisambiguationText || 'No additional website information found.'}
 ${negativeInfo || 'No negative information found.'}
     `.trim();
 
-    // Define base prompts based on entity type
     const basePrompts: Record<PersonOrCompany, IPromptsSet> = {
       people: {
-        overview: `Provide a comprehensive overview of ${refinedQuery}'s professional background focusing on their current role at ${context?.company || 'their company'}. Use ONLY the LinkedIn data provided.`,
+        overview: `Provide an overview of ${refinedQuery}'s professional background focusing on their current role at ${context?.company || 'their company'}. Use ONLY the LinkedIn data provided.`,
         market: `Analyze the market environment for ${refinedQuery} at ${context?.company || 'the company'}, including competitors, industry trends, and growth challenges.`,
-        financial: `Evaluate any available financial information related to ${refinedQuery}'s ventures, especially at ${context?.company || 'the company'}.`,
+        financial: `Evaluate any available financial information related to ${refinedQuery}'s ventures, especially at ${context?.company || 'the company'}.`
       },
       company: {
         overview: `Provide a thorough overview of the company ${refinedQuery}, including industry focus, key products/services, founding year, location, team members, and recent developments.`,
         market: `Discuss the broader market in which ${refinedQuery} competes, including main competitors, market trends, and growth opportunities or threats.`,
-        financial: `Evaluate the financial posture of ${refinedQuery}, including funding history, revenue models, recent funding rounds, and key financial challenges.`,
+        financial: `Evaluate the financial posture of ${refinedQuery}, including funding history, revenue models, recent funding rounds, and key financial challenges.`
       },
     };
 
-    // Define enhanced prompts with instructions for handling data limitations
     const overviewPrompt = `
-You are an expert analyst. Provide a comprehensive overview of ${refinedQuery}, including its industry focus, key products/services, founding year, location, team members, and recent developments. 
-Use ONLY the data provided below as the primary source of truth. 
-If specific information is unavailable, infer based on industry trends and similar companies, and clearly indicate any assumptions made.
-
-[Data Snippet]
+Use the data below as the primary source of truth for ${refinedQuery}:
 ${combinedSnippet}
-
 ${basePrompts[type].overview}
-    `.trim();
-
+    `;
     const marketPrompt = `
-You are an expert analyst. Analyze the market environment for ${refinedQuery} based on the available information.
-Discuss potential competitors, industry trends, and growth challenges.
-Where direct data is lacking, use analogous companies or industry standards to infer possible scenarios, and note any assumptions.
-
-[Data Snippet]
+Use the data below as the primary source of truth for ${refinedQuery}:
 ${combinedSnippet}
-
 ${basePrompts[type].market}
-    `.trim();
-
+    `;
     const financialPrompt = `
-You are an expert financial analyst. Evaluate the financial posture of ${refinedQuery} based on the available information.
-Include funding history, revenue models, recent funding rounds, and key financial challenges.
-If specific financial data is unavailable, infer based on industry standards and similar companies, clearly indicating any assumptions made.
-
-[Data Snippet]
+Use the data below as the primary source of truth for ${refinedQuery}:
 ${combinedSnippet}
-
 ${basePrompts[type].financial}
-    `.trim();
+    `;
 
-    // Define the search context for validation
     const searchContext: SearchContext = {
       query: refinedQuery,
       type,
@@ -514,8 +455,6 @@ ${basePrompts[type].financial}
     /* --------------------
        FETCHING MULTIPLE ANALYSES
     -------------------- */
-
-    // Fetch overview, market analysis, and financial analysis concurrently with validation
     const [overview, marketAnalysis, financialAnalysis] = await Promise.all([
       fetchFromPerplexityWithValidation(overviewPrompt, searchContext),
       fetchFromPerplexityWithValidation(marketPrompt, searchContext),
@@ -525,10 +464,8 @@ ${basePrompts[type].financial}
     /* --------------------
        STRATEGIC ANALYSIS
     -------------------- */
-
-    // Prompt for pattern analysis
     const patternAnalysisPrompt = `
-Analyze the following verified and inferred information exclusively about ${refinedQuery}:
+Analyze the following verified information exclusively about ${refinedQuery}:
 Overview: ${overview}
 Market Analysis: ${marketAnalysis}
 Financial Analysis: ${financialAnalysis}
@@ -537,14 +474,13 @@ Financial Analysis: ${financialAnalysis}
 1. Identify non-obvious patterns, hidden risks, and opportunities concerning ${refinedQuery}.
 2. Assess how different aspects interrelate.
 Focus on generating insights without repeating information.
-    `.trim();
+    `;
     console.log('Starting pattern analysis...');
     const patternAnalysis = await analyzeWithO1(patternAnalysisPrompt);
     console.log('Pattern analysis complete.');
 
-    // Prompt for strategic analysis based on pattern analysis
     const strategicAnalysisPrompt = `
-Based on the verified and inferred information and pattern analysis for ${refinedQuery}:
+Based on the verified information and pattern analysis for ${refinedQuery}:
 ${patternAnalysis}
 
 ### TASK
@@ -552,72 +488,41 @@ Provide a comprehensive strategic analysis focusing on ${refinedQuery}:
 - Leadership impact 
 - Growth trajectory
 - Risk-opportunity matrix
-Offer specific, actionable insights and clearly indicate any assumptions or inferences made due to data limitations.
-    `.trim();
+Offer specific, actionable insights.
+    `;
     console.log('Starting strategic analysis...');
     const strategicAnalysis = await analyzeWithO1(strategicAnalysisPrompt);
     console.log('Strategic analysis complete.');
 
     /* --------------------
-       CONFIDENCE SCORING
-    -------------------- */
-
-    // Function to calculate confidence based on key attribute mentions
-    function calculateConfidence(sectionContent: string): number {
-      const keyAttributes = {
-        overview: ['industry', 'products', 'founded', 'location', 'team', 'development'],
-        market: ['competitors', 'industry trends', 'growth challenges', 'market share'],
-        financial: ['funding', 'revenue', 'financial challenges', 'investment', 'funding rounds']
-      };
-
-      let score = 0;
-      //const attributes = type === 'people' ? keyAttributes.overview : keyAttributes.overview; // Adjust if necessary
-      Object.values(keyAttributes).flat().forEach(attr => {
-        if (sectionContent.toLowerCase().includes(attr.toLowerCase())) score += 1;
-      });
-      return (score / 6) * 100; // Assuming 6 key attributes for overview
-    }
-
-    // Calculate confidence scores for each section
-    const overviewConfidence = calculateConfidence(overview);
-    const marketConfidence = calculateConfidence(marketAnalysis);
-    const financialConfidence = calculateConfidence(financialAnalysis);
-
-    /* --------------------
        COMPOUNDING & FINAL SYNTHESIS
     -------------------- */
-
-    // Prompt for final executive brief
     const compilationPrompt = `
-We have gathered the following information about ${refinedQuery}:
+We have gathered the following verified information about ${refinedQuery}:
 
-**Overview:**
-${overview}  
-**Confidence:** ${overviewConfidence}%
+Overview:
+${overview}
 
-**Market Analysis:**
-${marketAnalysis}  
-**Confidence:** ${marketConfidence}%
+Market Analysis:
+${marketAnalysis}
 
-**Financial Analysis:**
-${financialAnalysis}  
-**Confidence:** ${financialConfidence}%
+Financial Analysis:
+${financialAnalysis}
 
-**Strategic Analysis:**
+Strategic Analysis:
 ${strategicAnalysis}
 
 ### TASK
 Based on the above data, create a concise executive brief for ${refinedQuery} that includes:
-- A brief summary (under 150 words) highlighting key insights and noting areas with lower confidence.
-- 5 specific, actionable questions for investors.
+- A brief summary (under 150 words)
+- 5 specific, actionable questions for investors
 
 Focus on key insights, potential risks, opportunities, and controversies. Provide concrete and actionable outputs.
-    `.trim();
+    `;
     console.log('Generating final synthesis...');
     const finalSynthesis = await analyzeWithO1(compilationPrompt);
     console.log('Final synthesis complete.');
 
-    // Extract summary and key questions from the final synthesis
     let summary = '';
     let keyQuestions: string[] = [];
     const parts = finalSynthesis.split(/(?=Questions:|Key Questions:)/i);
@@ -625,27 +530,22 @@ Focus on key insights, potential risks, opportunities, and controversies. Provid
     if (parts[1]) {
       const questionsText = parts[1];
       keyQuestions = questionsText
-        .split(/(?:\d+\.\s*|\n-|\n\*)\s+/)
+        .split(/(?:\d+\.|\n-|\n\*)\s+/)
         .filter(q => q.trim())
         .map(q => q.trim())
         .filter(q => q.endsWith('?'))
         .slice(0, 5);
     }
 
-    // Compile all results with confidence scores
     const results: AnalysisResults = {
       overview,
-      overviewConfidence,
       marketAnalysis,
-      marketConfidence,
       financialAnalysis,
-      financialConfidence,
       strategicAnalysis,
       summary,
       keyQuestions
     };
 
-    // --- Update Usage and Check Limits ---
     const usageResult = await checkAndUpdateUsage(user.id);
     if (!usageResult.canProceed) {
       console.log('Usage limit exceeded after processing.');
@@ -656,19 +556,8 @@ Focus on key insights, potential risks, opportunities, and controversies. Provid
       }, { status: 402 });
     }
 
-    // --- Cache the Results ---
     cache.set(cacheKey, results);
     console.log('Caching results and sending response.');
-
-    // --- Enhance Reporting Transparency ---
-    if (
-      overviewConfidence < 60 ||
-      marketConfidence < 60 ||
-      financialConfidence < 60
-    ) {
-      results.summary += `\n\n**Note:** Some sections of this report have lower confidence scores due to limited available data. For more accurate and detailed information, consider reaching out directly to ${refinedQuery} or exploring additional data sources.`;
-    }
-
     return NextResponse.json(results);
 
   } catch (error) {
