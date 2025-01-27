@@ -108,8 +108,8 @@ export function Header() {
             <Image
               src="/vcvantage.png"
               alt="VC Vantage Logo"
-              width={120}
-              height={40}
+              width={240}
+              height={80}
             />
           </Link>
         </div>

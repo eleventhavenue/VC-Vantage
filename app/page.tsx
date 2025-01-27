@@ -2,6 +2,7 @@
 
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
@@ -52,13 +53,15 @@ export default function Page() {
       {/* Navigation */}
       <nav className="relative z-10 container mx-auto px-4 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center space-x-2">
           <Image
             src="/vcvantage.png"
             alt="VC Vantage Logo"
-            width={120}
-            height={40}
+            width={240}
+            height={80}
             className="h-8 w-auto"
-          />
+            />
+          </Link>
         </div>
         
       </nav>
