@@ -31,48 +31,79 @@ import Banner from "@/components/Banner" // Import the Banner component
 const Header: React.FC<{ onSignUpClick: () => void }> = ({ onSignUpClick }) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-  <div className="w-full flex flex-wrap items-center justify-between px-4 py-2 lg:max-w-7xl mx-auto gap-2 sm:gap-4">
-    {/* Logo Section */}
-    <Link href="/" className="flex items-center">
-      <Image
-        src="/vcvantage.png"
-        alt="VC Vantage Logo"
-        width={180}
-        height={60}
-        className="w-auto h-8 sm:h-10"
-      />
-    </Link>
-
-    {/* Buttons Section */}
-    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onSignUpClick}
-        className="whitespace-nowrap"
-      >
-        <Mail className="mr-2 h-4 w-4" />
-        Sign Up
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(window.location.href)
-              .then(() => alert("Page link copied to clipboard!"))
-              .catch(() => alert("Failed to copy the page link."));
-          }
-        }}
-        className="whitespace-nowrap"
-      >
-        <Share2 className="mr-2 h-4 w-4" />
-        Copy Link
-      </Button>
-    </div>
-  </div>
-</header>
-
+      <div className="w-full flex h-16 items-center justify-between px-4 lg:max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          {/* Logo linking back to home */}
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/vcvantage.png"
+              alt="VC Vantage Logo"
+              width={180}
+              height={60}
+              className="w-auto h-8 md:h-10"
+            />
+          </Link>
+        </div>
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Sign Up Button */}
+          <Button variant="outline" size="sm" onClick={onSignUpClick} className="whitespace-nowrap">
+            <Mail className="mr-2 h-4 w-4" />
+            Sign Up
+          </Button>
+          {/* Share Button with onClick handler */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(window.location.href)
+                  .then(() => {
+                    alert("Page link copied to clipboard!")
+                  })
+                  .catch((err) => {
+                    console.error("Failed to copy: ", err)
+                    alert("Failed to copy the page link. Please try manually.")
+                  })
+              } else {
+                // Fallback method...
+                const textArea = document.createElement("textarea")
+                textArea.value = window.location.href
+                // Styling to hide the textarea
+                textArea.style.position = "fixed"
+                textArea.style.top = "0"
+                textArea.style.left = "0"
+                textArea.style.width = "2em"
+                textArea.style.height = "2em"
+                textArea.style.padding = "0"
+                textArea.style.border = "none"
+                textArea.style.outline = "none"
+                textArea.style.boxShadow = "none"
+                textArea.style.background = "transparent"
+                document.body.appendChild(textArea)
+                textArea.focus()
+                textArea.select()
+                try {
+                  const successful = document.execCommand('copy')
+                  if (successful) {
+                    alert("Page link copied to clipboard!")
+                  } else {
+                    alert("Failed to copy the page link. Please try manually.")
+                  }
+                } catch (err) {
+                  console.error("Fallback: Oops, unable to copy", err)
+                  alert("Failed to copy the page link. Please try manually.")
+                }
+                document.body.removeChild(textArea)
+              }
+            }}
+            className="whitespace-nowrap"
+          >
+            <Share2 className="mr-2 h-4 w-4" />
+            Copy Link
+          </Button>
+        </div>
+      </div>
+    </header>
   )
 }
 
@@ -128,7 +159,7 @@ export default function Page() {
       <Header onSignUpClick={openSignUp} />
 
       {/* Top Banner */}
-      <div className="mt-12 col-span-full">
+      <div className="w-full px-4 lg:max-w-7xl mx-auto">
         <Banner
           title="VC Vantage elevates your investment game with AI-powered due diligence and insights"
           description="Join our community to receive the latest reports and AI-powered investment strategies."
