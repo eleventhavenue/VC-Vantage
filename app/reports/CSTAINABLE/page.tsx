@@ -183,7 +183,12 @@ export default function Page() {
             </div>
           </aside>
           <div className="space-y-12">
-            <div>
+          <div className="space-y-6">
+              <Alert>
+                <AlertDescription className="text-center text-lg font-medium">
+                  VC Vantage elevates the investment game with AI-powered due diligence and comprehensive insights
+                </AlertDescription>
+              </Alert>
               <h1 className="text-4xl font-bold mb-2">Who Is... Cstainable Inc.</h1>
             </div>
 
@@ -646,7 +651,14 @@ export default function Page() {
                 </CardContent>
               </Card>
             </section>
-          </div>
+          </div><div className="space-y-6">
+              <Alert>
+                <AlertDescription className="text-center text-lg font-medium">
+                  VC Vantage elevates the investment game with AI-powered due diligence and comprehensive insights
+                </AlertDescription>
+              </Alert>
+              
+              </div>
         </div>
       </main>
     </div>
