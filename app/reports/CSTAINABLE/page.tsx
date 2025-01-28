@@ -155,24 +155,27 @@ export default function Page() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header with onSignUpClick prop */}
+      {/* Header */}
       <Header onSignUpClick={openSignUp} />
 
-      {/* Top Banner */}
-      <div className="w-full px-4 lg:max-w-7xl mx-auto">
-        <Banner
-          title="VC Vantage elevates your investment game with AI-powered due diligence and insights"
-          description="Join our community to receive the latest reports and AI-powered investment strategies."
-          buttonText="Learn More"
-          buttonLink="/"
-          variant="primary"
-          className="text-2xl md:text-3xl lg:text-4xl font-bold"
-          descriptionClassName="text-base md:text-lg opacity-90"
-        />
-      </div>
-
       <main className="flex-1">
+        {/* Put the entire page (including top banner) in a single grid container */}
         <div className="container grid lg:grid-cols-[240px_1fr] gap-8 py-8">
+          
+          {/* Top Banner: span all columns */}
+          <div className="col-span-full">
+            <Banner
+              title="VC Vantage elevates your investment game..."
+              description="Join our community..."
+              buttonText="Learn More"
+              buttonLink="/"
+              variant="primary"
+              className="text-2xl md:text-3xl lg:text-4xl font-bold"
+              descriptionClassName="text-base md:text-lg opacity-90"
+            />
+          </div>
+
+          {/* Sidebar */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
               <TableOfContents />
