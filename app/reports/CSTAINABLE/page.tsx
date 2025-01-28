@@ -31,7 +31,7 @@ import Banner from "@/components/Banner" // Import the Banner component
 const Header: React.FC<{ onSignUpClick: () => void }> = ({ onSignUpClick }) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+      <div className="w-full flex h-16 items-center justify-between px-4 lg:max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
           {/* Logo linking back to home */}
           <Link href="/" className="flex items-center">
@@ -157,9 +157,9 @@ export default function Page() {
     <div className="min-h-screen flex flex-col">
       {/* Header with onSignUpClick prop */}
       <Header onSignUpClick={openSignUp} />
-  
-      {/* Top Banner with container class */}
-      <div className="container px-4 mx-auto">
+
+      {/* Top Banner */}
+      <div className="w-full px-4 lg:max-w-7xl mx-auto">
         <Banner
           title="VC Vantage elevates your investment game with AI-powered due diligence and insights"
           description="Join our community to receive the latest reports and AI-powered investment strategies."
