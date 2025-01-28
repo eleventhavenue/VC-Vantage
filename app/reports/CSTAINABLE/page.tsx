@@ -159,7 +159,7 @@ export default function Page() {
       <Header onSignUpClick={openSignUp} />
 
       {/* Top Banner */}
-      <div className="w-full px-4 lg:max-w-7xl mx-auto">
+      <div className="mt-12 col-span-full">
         <Banner
           title="VC Vantage elevates your investment game with AI-powered due diligence and insights"
           description="Join our community to receive the latest reports and AI-powered investment strategies."
