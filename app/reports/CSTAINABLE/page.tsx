@@ -31,7 +31,7 @@ import Banner from "@/components/Banner" // Import the Banner component
 const Header: React.FC<{ onSignUpClick: () => void }> = ({ onSignUpClick }) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="mx-auto w-full max-w-7xl flex h-16 items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-6">
           {/* Logo linking back to home */}
           <Link href="/" className="flex items-center space-x-2">
@@ -297,14 +297,14 @@ export default function Page() {
                   <p>
                     The global protected agriculture market represents a significant opportunity for Cstainable Inc. The
                     company estimates the market size at over 800 billion square feet, translating to a $1 trillion
-                    opportunity². Cstainable Inc. positions itself as a technology provider that can potentially
+                    opportunity. Cstainable Inc. positions itself as a technology provider that can potentially
                     increase growers&apos; yields by 30%, which could result in $300 billion of extra revenue for their
-                    growing partners².
+                    growing partners.
                   </p>
                   <p>
                     The company claims that utilizing their technology could lead to 100 million metric tons more food
                     produced annually, enough to feed half a billion people a year, while simultaneously reducing CO₂
-                    emissions from greenhouse facilities².
+                    emissions from greenhouse facilities.
                   </p>
                 </CardContent>
               </Card>
@@ -321,10 +321,10 @@ export default function Page() {
                   <ul className="list-disc pl-6 space-y-2">
                     <li>Commercial sales contracts were over $1.5 million last year</li>
                     <li>Total sales to date exceed $2.5 million</li>
-                    <li>The company maintains a gross profit margin greater than 75%²</li>
+                    <li>The company maintains a gross profit margin greater than 75%</li>
                     <li>
                       Cstainable Inc. reports a current sales pipeline of $600 million, consisting of 50 customers in 15
-                      different countries².
+                      different countries.
                     </li>
                   </ul>
                 </CardContent>
@@ -382,7 +382,7 @@ export default function Page() {
                 </CardHeader>
                 <CardContent>
                   <p>
-                    Cstainable Inc.&apos;s technology has been integrated into 25 projects with 10 different crop varieties².
+                    Cstainable Inc.&apos;s technology has been integrated into 25 projects with 10 different crop varieties.
                     The company&apos;s Crop Enhancement service aims to increase yields and reduce emissions, though specific
                     details on how the technology works are not provided in the search results.
                   </p>
@@ -396,8 +396,8 @@ export default function Page() {
                 <CardContent>
                   <p>
                     The company has a diverse customer base spanning 15 countries, with 50 customers in their sales
-                    pipeline². Their technology has been implemented in 25 projects across 10 different crop varieties,
-                    demonstrating adaptability to various agricultural settings².
+                    pipeline. Their technology has been implemented in 25 projects across 10 different crop varieties,
+                    demonstrating adaptability to various agricultural settings.
                   </p>
                 </CardContent>
               </Card>
@@ -410,7 +410,7 @@ export default function Page() {
                   <p>
                     Cstainable Inc. has a global operational structure, with control system suppliers in Colombia,
                     project managers in Latin America, and sales teams in Canada, the United States, and other parts of
-                    the world².
+                    the world.
                   </p>
                 </CardContent>
               </Card>
@@ -494,9 +494,9 @@ export default function Page() {
                 <CardContent>
                   <p>
                     Cstainable Inc.&apos;s growth strategy appears to focus on international expansion, leveraging support
-                    from organizations like the Canadian Trade Commission Services and Export Development Canada². The
+                    from organizations like the Canadian Trade Commission Services and Export Development Canada. The
                     company aims to execute its international development strategy to capitalize on the 99% of market
-                    opportunities outside of Canada².
+                    opportunities outside of Canada.
                   </p>
                 </CardContent>
               </Card>
@@ -508,7 +508,7 @@ export default function Page() {
                 <CardContent>
                   <p>
                     Cstainable Inc.&apos;s technology aligns with environmental sustainability goals by potentially reducing
-                    CO₂ emissions from greenhouse facilities while increasing food production². This approach addresses
+                    CO₂ emissions from greenhouse facilities while increasing food production. This approach addresses
                     both food security and environmental concerns, key aspects of ESG considerations in the agricultural
                     sector.
                   </p>
@@ -638,12 +638,12 @@ export default function Page() {
             </section>
           </div>
            {/* Bottom Banner */}
-           <div className="mt-12 col-span-full">
+          <div className="mt-12 col-span-full">
             <Banner
               title="Stay Ahead with VC Vantage"
               description="Subscribe to our newsletter for the latest insights and updates in AI-driven investments."
               buttonText="Subscribe Now"
-              //buttonLink="/" // This will be ignored since onButtonClick is provided
+              //buttonLink="/" // This will be ignored since onClick is provided
               variant="primary"
               onButtonClick={openSignUp} // Pass the openSignUp function
             />
