@@ -31,21 +31,22 @@ import Banner from "@/components/Banner" // Import the Banner component
 const Header: React.FC<{ onSignUpClick: () => void }> = ({ onSignUpClick }) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="w-full flex h-16 items-center justify-between px-4 md:px-8 lg:max-w-7xl mx-auto">
-        <div className="flex items-center gap-6">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <div className="flex items-center gap-2">
           {/* Logo linking back to home */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center">
             <Image
               src="/vcvantage.png"
               alt="VC Vantage Logo"
-              width={240}
-              height={80}
+              width={180}
+              height={60}
+              className="w-auto h-8 md:h-10"
             />
           </Link>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 md:gap-4">
           {/* Sign Up Button */}
-          <Button variant="outline" size="sm" onClick={onSignUpClick}>
+          <Button variant="outline" size="sm" onClick={onSignUpClick} className="whitespace-nowrap">
             <Mail className="mr-2 h-4 w-4" />
             Sign Up
           </Button>
@@ -95,6 +96,7 @@ const Header: React.FC<{ onSignUpClick: () => void }> = ({ onSignUpClick }) => {
                 document.body.removeChild(textArea)
               }
             }}
+            className="whitespace-nowrap"
           >
             <Share2 className="mr-2 h-4 w-4" />
             Copy Link
@@ -152,20 +154,23 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col col-span-full">
+    <div className="min-h-screen flex flex-col">
       {/* Header with onSignUpClick prop */}
       <Header onSignUpClick={openSignUp} />
+  
+      {/* Top Banner with container class */}
+      <div className="container px-4 mx-auto">
+        <Banner
+          title="VC Vantage elevates your investment game with AI-powered due diligence and insights"
+          description="Join our community to receive the latest reports and AI-powered investment strategies."
+          buttonText="Learn More"
+          buttonLink="/"
+          variant="primary"
+          className="text-2xl md:text-3xl lg:text-4xl font-bold"
+          descriptionClassName="text-base md:text-lg opacity-90"
+        />
+      </div>
 
-      {/* Top Banner */}
-      <div className="mt-12 col-span-full">
-      <Banner
-        title="VC Vantage elevates your investment game with AI-powered due diligence and insights"
-        description="Join our community to receive the latest reports and AI-powered investment strategies."
-        buttonText="Learn More"
-        buttonLink="/"
-        variant="primary"
-      />
-</div>
       <main className="flex-1">
         <div className="container grid lg:grid-cols-[240px_1fr] gap-8 py-8">
           <aside className="hidden lg:block">

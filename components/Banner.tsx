@@ -1,5 +1,3 @@
-// components/Banner.tsx
-
 "use client"
 
 import { Button } from "@/components/ui/button"
@@ -10,10 +8,12 @@ interface BannerProps {
   title: string
   description: string
   buttonText: string
-  buttonLink?: string // Make buttonLink optional
-  onButtonClick?: () => void // Optional click handler
+  buttonLink?: string
+  onButtonClick?: () => void
   variant?: "primary" | "secondary"
-  icon?: React.ReactNode // Optional: For adding icons if needed
+  icon?: React.ReactNode
+  className?: string
+  descriptionClassName?: string
 }
 
 const Banner: React.FC<BannerProps> = ({
@@ -24,6 +24,8 @@ const Banner: React.FC<BannerProps> = ({
   onButtonClick,
   variant = "primary",
   icon,
+  className,
+  descriptionClassName,
 }) => {
   return (
     <motion.div
@@ -35,9 +37,9 @@ const Banner: React.FC<BannerProps> = ({
       transition={{ duration: 0.6 }}
     >
       {icon && <div className="mr-4">{icon}</div>}
-      <div className="mb-4 md:mb-0 ">
-        <h2 className="text-2xl font-semibold">{title}</h2>
-        <p className="mt-2 text-lg">{description}</p>
+      <div className="mb-4 md:mb-0">
+        <h2 className={`text-2xl font-semibold ${className}`}>{title}</h2>
+        <p className={`mt-2 text-lg ${descriptionClassName}`}>{description}</p>
       </div>
       {buttonLink ? (
         <Link href={buttonLink} className="flex-shrink-0">
