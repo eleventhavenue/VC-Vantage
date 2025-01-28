@@ -107,9 +107,9 @@ export default function Page() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Giving Angel Investors the{" "}
-              <span className="text-blue-600">&quot;VC Vantage&quot;</span>
-            </h1>
+  Giving Angel Investors the<br />
+  <span className="text-blue-600">VC Vantage</span>
+</h1>
             <p className="text-xl text-gray-600">
               Stay ahead of the curve. Sign up for exclusive updates on our beta launch
               and the latest in AI-powered investment insights.

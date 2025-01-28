@@ -2,7 +2,7 @@
 
 "use client"
 
-import React, { useCallback, useState } from "react"
+import React, { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Share2, Mail } from "lucide-react"
@@ -13,7 +13,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import Label from "@/components/ui/label"
@@ -23,61 +22,104 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
 import { ExecutiveProfile } from "@/components/executive-profile"
 import { RiskMatrix } from "@/components/risk-matrix"
+import Banner from "@/components/Banner" // Import the Banner component
 
 //
-// Merged Header Component
+// Updated Header Component
 //
 
-const Header: React.FC = () => {
+const Header: React.FC<{ onSignUpClick: () => void }> = ({ onSignUpClick }) => {
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-6">
+          {/* Logo linking back to home */}
+          <Link href="/" className="flex items-center space-x-2">
+            <Image
+              src="/vcvantage.png"
+              alt="VC Vantage Logo"
+              width={240}
+              height={80}
+            />
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Sign Up Button */}
+          <Button variant="outline" size="sm" onClick={onSignUpClick}>
+            <Mail className="mr-2 h-4 w-4" />
+            Sign Up
+          </Button>
+          {/* Share Button with onClick handler */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(window.location.href)
+                  .then(() => {
+                    alert("Page link copied to clipboard!")
+                  })
+                  .catch((err) => {
+                    console.error("Failed to copy: ", err)
+                    alert("Failed to copy the page link. Please try manually.")
+                  })
+              } else {
+                // Fallback method...
+                const textArea = document.createElement("textarea")
+                textArea.value = window.location.href
+                // Styling to hide the textarea
+                textArea.style.position = "fixed"
+                textArea.style.top = "0"
+                textArea.style.left = "0"
+                textArea.style.width = "2em"
+                textArea.style.height = "2em"
+                textArea.style.padding = "0"
+                textArea.style.border = "none"
+                textArea.style.outline = "none"
+                textArea.style.boxShadow = "none"
+                textArea.style.background = "transparent"
+                document.body.appendChild(textArea)
+                textArea.focus()
+                textArea.select()
+                try {
+                  const successful = document.execCommand('copy')
+                  if (successful) {
+                    alert("Page link copied to clipboard!")
+                  } else {
+                    alert("Failed to copy the page link. Please try manually.")
+                  }
+                } catch (err) {
+                  console.error("Fallback: Oops, unable to copy", err)
+                  alert("Failed to copy the page link. Please try manually.")
+                }
+                document.body.removeChild(textArea)
+              }
+            }}
+          >
+            <Share2 className="mr-2 h-4 w-4" />
+            Copy Link
+          </Button>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+//
+// Main Page Component
+//
+
+export default function Page() {
+  const [isSignUpOpen, setIsSignUpOpen] = useState(false)
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Function to handle sharing the current page URL
-  const handleShare = useCallback(() => {
-    // Clipboard handling as previously implemented...
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(window.location.href)
-        .then(() => {
-          alert("Page link copied to clipboard!")
-        })
-        .catch((err) => {
-          console.error("Failed to copy: ", err)
-          alert("Failed to copy the page link. Please try manually.")
-        })
-    } else {
-      // Fallback method...
-      const textArea = document.createElement("textarea")
-      textArea.value = window.location.href
-      // Styling to hide the textarea
-      textArea.style.position = "fixed"
-      textArea.style.top = "0"
-      textArea.style.left = "0"
-      textArea.style.width = "2em"
-      textArea.style.height = "2em"
-      textArea.style.padding = "0"
-      textArea.style.border = "none"
-      textArea.style.outline = "none"
-      textArea.style.boxShadow = "none"
-      textArea.style.background = "transparent"
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-      try {
-        const successful = document.execCommand('copy')
-        if (successful) {
-          alert("Page link copied to clipboard!")
-        } else {
-          alert("Failed to copy the page link. Please try manually.")
-        }
-      } catch (err) {
-        console.error("Fallback: Oops, unable to copy", err)
-        alert("Failed to copy the page link. Please try manually.")
-      }
-      document.body.removeChild(textArea)
-    }
-  }, [])
+  // Function to open the Sign-Up Dialog
+  const openSignUp = () => setIsSignUpOpen(true)
+  // Function to close the Sign-Up Dialog
+  
 
   // Function to handle sign-up form submission
   const handleSignUp = async (e: React.FormEvent) => {
@@ -96,7 +138,7 @@ const Header: React.FC = () => {
       const data = await response.json()
 
       if (response.ok) {
-        setMessage(data.message)
+        setMessage(data.message || 'Successfully subscribed!')
         setEmail('')
       } else {
         setError(data.message || 'Something went wrong.')
@@ -110,71 +152,19 @@ const Header: React.FC = () => {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-6">
-          {/* Logo linking back to home */}
-          <Link href="/" className="flex items-center space-x-2">
-            <Image
-              src="/vcvantage.png"
-              alt="VC Vantage Logo"
-              width={240}
-              height={80}
-            />
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Mail className="mr-2 h-4 w-4" />
-                Sign Up
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Like What You See?</DialogTitle>
-                <DialogDescription>Sign Up for Updates on Our Launch!</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <form onSubmit={handleSignUp} className="grid gap-2">
-                  <Label htmlFor="header-email">Email</Label>
-                  <Input
-                    id="header-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                  {message && <p className="text-green-600">{message}</p>}
-                  {error && <p className="text-red-600">{error}</p>}
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Submitting...' : 'Subscribe'}
-                  </Button>
-                </form>
-              </div>
-            </DialogContent>
-          </Dialog>
-          {/* Share Button with onClick handler */}
-          <Button variant="outline" size="sm" onClick={handleShare}>
-            <Share2 className="mr-2 h-4 w-4" />
-            Copy Link
-          </Button>
-        </div>
-      </div>
-    </header>
-  )
-}
-
-//
-// Main Page Component
-//
-
-export default function Page() {
-  return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      {/* Header with onSignUpClick prop */}
+      <Header onSignUpClick={openSignUp} />
+
+      {/* Top Banner */}
+      <Banner
+        title="VC Vantage elevates your investment game with AI-powered due diligence and insights"
+        description="Join our community to receive the latest reports and AI-powered investment strategies."
+        buttonText="Learn More"
+        buttonLink="/"
+        variant="primary"
+      />
+
       <main className="flex-1">
         <div className="container grid lg:grid-cols-[240px_1fr] gap-8 py-8">
           <aside className="hidden lg:block">
@@ -183,12 +173,7 @@ export default function Page() {
             </div>
           </aside>
           <div className="space-y-12">
-          <div className="space-y-6">
-              <Alert>
-                <AlertDescription className="text-center text-lg font-medium">
-                  VC Vantage elevates the investment game with AI-powered due diligence and comprehensive insights
-                </AlertDescription>
-              </Alert>
+            <div>
               <h1 className="text-4xl font-bold mb-2">Who Is... Cstainable Inc.</h1>
             </div>
 
@@ -651,16 +636,48 @@ export default function Page() {
                 </CardContent>
               </Card>
             </section>
-          </div><div className="space-y-6">
-              <Alert>
-                <AlertDescription className="text-center text-lg font-medium">
-                  VC Vantage elevates the investment game with AI-powered due diligence and comprehensive insights
-                </AlertDescription>
-              </Alert>
-              
-              </div>
+          </div>
+           {/* Bottom Banner */}
+           <div className="mt-12 col-span-full">
+            <Banner
+              title="Stay Ahead with VC Vantage"
+              description="Subscribe to our newsletter for the latest insights and updates in AI-driven investments."
+              buttonText="Subscribe Now"
+              //buttonLink="/" // This will be ignored since onButtonClick is provided
+              variant="primary"
+              onButtonClick={openSignUp} // Pass the openSignUp function
+            />
+          </div>
         </div>
       </main>
+
+      {/* Shared Sign-Up Dialog */}
+      <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Like What You See?</DialogTitle>
+            <DialogDescription>Sign Up for Updates on Our Launch!</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <form onSubmit={handleSignUp} className="grid gap-2">
+              <Label htmlFor="sign-up-email">Email</Label>
+              <Input
+                id="sign-up-email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              {message && <p className="text-green-600">{message}</p>}
+              {error && <p className="text-red-600">{error}</p>}
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Submitting...' : 'Subscribe'}
+              </Button>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
