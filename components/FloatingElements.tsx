@@ -3,56 +3,65 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { useEffect, useState } from "react"
 
-const FloatingElements = () => {
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
-
-  useEffect(() => {
-    // Set initial window size
-    setWindowSize({
-      width: window.innerWidth,
-      height: window.innerHeight,
-    })
-
-    // Update window size on resize
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      })
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
+export default function FloatingElements() {
   return (
-    <>
-      {[...Array(10)].map((_, i) => (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* Glowing orbs */}
+      <motion.div
+        className="absolute w-64 h-64 rounded-full bg-emerald-500/20 blur-3xl"
+        animate={{
+          x: [0, 100, 0],
+          y: [0, -50, 0],
+        }}
+        transition={{
+          duration: 20,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+        style={{
+          top: "20%",
+          left: "10%",
+        }}
+      />
+      <motion.div
+        className="absolute w-96 h-96 rounded-full bg-emerald-600/10 blur-3xl"
+        animate={{
+          x: [0, -70, 0],
+          y: [0, 100, 0],
+        }}
+        transition={{
+          duration: 25,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+        style={{
+          top: "40%",
+          right: "15%",
+        }}
+      />
+
+      {/* Particles */}
+      {Array.from({ length: 20 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute hidden md:block w-4 h-4 bg-blue-500 rounded-full"
-          initial={{
-            x: windowSize.width ? Math.random() * windowSize.width : 0,
-            y: windowSize.height ? Math.random() * windowSize.height : 0,
-            scale: 0,
-          }}
+          className="absolute w-1 h-1 bg-emerald-400/30 rounded-full"
           animate={{
-            x: windowSize.width ? Math.random() * windowSize.width : 0,
-            y: windowSize.height ? Math.random() * windowSize.height : 0,
-            scale: [0, 1, 0],
+            y: [0, -1000],
+            opacity: [0, 1, 0],
           }}
           transition={{
-            duration: Math.random() * 5 + 5,
-            repeat: Infinity,
-            repeatType: "loop",
-            ease: "easeInOut",
+            duration: Math.random() * 10 + 10,
+            repeat: Number.POSITIVE_INFINITY,
+            delay: Math.random() * 5,
+          }}
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: "100%",
           }}
         />
       ))}
-    </>
+    </div>
   )
 }
 
-export default FloatingElements
