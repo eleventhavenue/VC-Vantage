@@ -34,6 +34,7 @@ const excludedPaths = [
   /^\/$/,                                   // Exclude the homepage
   /^\/reports\/CSTAINABLE(?:\/|$)/i,        // Exclude /reports/CSTAINABLE and its subpaths
   /^\/api\/auth\/.*/,                       // Exclude all auth API routes
+  /^\/api\/signup(?:\/|$)/i,                // Exclude /api/signup and its subpaths
   /^\/_next\/.*/,                           // Exclude Next.js internal routes
   /^\/favicon\.ico$/,                       // Exclude favicon
   /\.(png|jpg|jpeg|gif|svg|ico|webp)$/i,     // Exclude all image files
