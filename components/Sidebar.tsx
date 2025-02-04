@@ -1,21 +1,20 @@
 // components/Sidebar.tsx
 
-'use client'; // Ensure this component is rendered on the client side
+'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation'; // Import the usePathname hook
+import { usePathname } from 'next/navigation';
 import {
   MountainIcon,
   Search,
-  FileText,
   Settings,
   BarChart2,
 } from 'lucide-react';
 
 const Sidebar = () => {
-  const pathname = usePathname(); // Get the current pathname
+  const pathname = usePathname();
 
-  // Function to determine if a link is active
+  // Helper function to check if a link is active.
   const isActive = (href: string) => {
     if (href === '/') {
       return pathname === '/';
@@ -25,91 +24,89 @@ const Sidebar = () => {
 
   return (
     <aside className="w-64 bg-white dark:bg-gray-800 shadow-md min-h-screen">
-      <div className="p-4">
-        <Link href="/" className="flex items-center space-x-2">
-          <MountainIcon className="h-6 w-6 text-blue-500" />
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
+      {/* Header */}
+      <div className="p-6">
+        <Link href="/" className="flex items-center space-x-3">
+          <MountainIcon className="h-8 w-8 text-blue-500" />
+          <span className="text-2xl font-bold text-gray-900 dark:text-white">
             VC Vantage
           </span>
         </Link>
       </div>
-      <nav className="mt-6">
-        {/* Dashboard Link */}
-        <Link
-          href="/dashboard"
-          className={`flex items-center px-4 py-2 rounded-md ${
-            isActive('/dashboard')
-              ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-          }`}
-        >
-          <BarChart2 className="h-5 w-5 mr-3" />
-          Dashboard
-        </Link>
 
-        {/* Search Link */}
-        <Link
-          href="/search"
-          className={`flex items-center px-4 py-2 rounded-md ${
-            isActive('/search')
-              ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-          }`}
-        >
-          <Search className="h-5 w-5 mr-3" />
-          Search
-        </Link>
+      {/* Navigation */}
+      <nav className="px-4">
+        <div className="space-y-1">
+          {/* Dashboard */}
+          <Link
+            href="/dashboard"
+            className={`flex items-center px-4 py-3 rounded-md transition-colors duration-200 ${
+              isActive('/dashboard')
+                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+            }`}
+          >
+            <BarChart2 className="h-5 w-5 mr-3" />
+            Dashboard
+          </Link>
 
-        {/* Reports group */}
-<div className="mt-2">
-  {/* A header label for the group */}
-  <div className="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300">
-    <FileText className="h-5 w-5 mr-3" />
-    <span className="font-medium">Reports</span>
-  </div>
+          {/* Search */}
+          <Link
+            href="/search"
+            className={`flex items-center px-4 py-3 rounded-md transition-colors duration-200 ${
+              isActive('/search')
+                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Search className="h-5 w-5 mr-3" />
+            Search
+          </Link>
+        </div>
 
-  {/* Indented sub-links */}
-  <div className="ml-6">
-    {/* Ephemeral Reports */}
-    <Link
-      href="/reports"
-      className={`flex items-center px-4 py-2 rounded-md ${
-        // Mark active if route is `/reports` but not `/reports/saved`
-        isActive('/reports') && !isActive('/reports/saved')
-          ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
-          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-      }`}
-    >
-      Ephemeral
-    </Link>
+        {/* Reports Group */}
+        <div className="mt-6">
+          <div className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+            Reports
+          </div>
+          <div className="space-y-1">
+            <Link
+              href="/reports"
+              className={`flex items-center px-4 py-3 rounded-md transition-colors duration-200 ${
+                isActive('/reports') && !isActive('/reports/saved')
+                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
+                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              Ephemeral
+            </Link>
+            <Link
+              href="/reports/saved"
+              className={`flex items-center px-4 py-3 rounded-md transition-colors duration-200 ${
+                isActive('/reports/saved')
+                  ? 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
+                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              Saved
+            </Link>
+          </div>
+        </div>
 
-    {/* Saved Reports */}
-    <Link
-      href="/reports/saved"
-      className={`flex items-center px-4 py-2 rounded-md ${
-        isActive('/reports/saved')
-          ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
-          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-      }`}
-    >
-      Saved
-    </Link>
-  </div>
-</div>
-
-
-        {/* Settings Link */}
-        <Link
-          href="/settings"
-          className={`flex items-center px-4 py-2 rounded-md ${
-            isActive('/settings')
-              ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-          }`}
-        >
-          <Settings className="h-5 w-5 mr-3" />
-          Settings
-        </Link>
+        {/* Settings */}
+        <div className="mt-6">
+          <Link
+            href="/settings"
+            className={`flex items-center px-4 py-3 rounded-md transition-colors duration-200 ${
+              isActive('/settings')
+                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Settings className="h-5 w-5 mr-3" />
+            Settings
+          </Link>
+        </div>
       </nav>
     </aside>
   );

@@ -24,7 +24,7 @@ import html2pdf from 'html2pdf.js';
 
 import { Components } from 'react-markdown';
 import Sidebar from '@/components/Sidebar';
-import { useReportsStore } from '@/store/reportsStore'; // Updated import path
+import { useReportsStore } from '@/store/reportsStore';
 
 type MarkdownComponents = Components;
 
@@ -40,65 +40,37 @@ export default function ReportsClientComponent() {
   const typeParam = searchParams.get('type');
   const companyParam = searchParams.get('company') || undefined;
   const titleParam = searchParams.get('title') || undefined;
-
-  // NEW: Grab any optional LinkedIn URL from the searchParams
+  // Optional LinkedIn URL parameter
   const linkedinUrlParam = searchParams.get('linkedinUrl') || undefined;
 
-  // Function to handle fetching the report
+  // Effect to fetch the report only if valid query parameters are provided.
   useEffect(() => {
-    // Redirect to sign-in if not authenticated
+    // Wait until authentication status is resolved.
     if (status === 'loading') return;
     if (!session) {
       signIn();
       return;
     }
 
-    const initiateFetch = () => {
-      if (queryParam && (typeParam === 'people' || typeParam === 'company')) {
-        if (
-          !currentSearch ||
-          currentSearch.query !== queryParam ||
-          currentSearch.type !== typeParam ||
-          !results
-        ) {
-          // We can pass the linkedinUrlParam here
-          fetchReport(
-            queryParam,
-            typeParam as 'people' | 'company',
-            companyParam,
-            titleParam,
-            linkedinUrlParam
-          );
-        }
-      } else {
-        // Attempt to retrieve last search from localStorage
-        const lastSearch = localStorage.getItem('lastSearch');
-        if (lastSearch) {
-          try {
-            const { query, type } = JSON.parse(lastSearch);
-            if (query && (type === 'people' || type === 'company')) {
-              // Only fetch if currentSearch doesn't match or results are not present
-              if (
-                !currentSearch ||
-                currentSearch.query !== query ||
-                currentSearch.type !== type ||
-                !results
-              ) {
-                router.replace(`/reports?query=${encodeURIComponent(query)}&type=${type}`);
-                fetchReport(query, type);
-              }
-              return;
-            }
-          } catch (e) {
-            console.error('Error parsing lastSearch from localStorage:', e);
-          }
-        }
-        // If no valid search parameters, set an error via the store
-        setError('Invalid search parameters.');
+    // Only initiate fetching if the URL contains valid query parameters.
+    if (queryParam && (typeParam === 'people' || typeParam === 'company')) {
+      if (
+        !currentSearch ||
+        currentSearch.query !== queryParam ||
+        currentSearch.type !== typeParam ||
+        !results
+      ) {
+        // Fetch the report using the provided parameters.
+        fetchReport(
+          queryParam,
+          typeParam as 'people' | 'company',
+          companyParam,
+          titleParam,
+          linkedinUrlParam
+        );
       }
-    };
-
-    initiateFetch();
+    }
+    // If no valid query parameters exist, do nothing so that the empty state is shown.
   }, [
     queryParam,
     typeParam,
@@ -114,13 +86,13 @@ export default function ReportsClientComponent() {
     setError
   ]);
 
-  // Load dark mode preference on initial render
+  // Load dark mode preference on initial render.
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme');
     setIsDarkMode(storedTheme === 'dark');
   }, []);
 
-  // Apply dark mode class to <html> element
+  // Apply dark mode class to <html> element.
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -140,7 +112,7 @@ export default function ReportsClientComponent() {
   }
 
   if (!session) {
-    return null; // Prevent flash of unauthenticated content
+    return null; // Prevent flash of unauthenticated content.
   }
 
   const handleExportPDF = () => {
@@ -168,7 +140,7 @@ export default function ReportsClientComponent() {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Define markdown components
+  // Define markdown components.
   const markdownComponents: MarkdownComponents = {
     h1: ({ ...props }) => (
       <h1
@@ -264,11 +236,11 @@ export default function ReportsClientComponent() {
             </div>
           )}
 
-          {/* No Results State */}
+          {/* No Ephemeral Report State */}
           {!isLoading && !error && !results && (
             <div className="flex flex-col items-center justify-center h-full bg-gray-200 dark:bg-gray-700 rounded-lg shadow p-8">
               <p className="text-gray-700 dark:text-gray-200 text-xl mb-4">
-                No results found.
+                No ephemeral report generated for this session. Please perform a search.
               </p>
               <Link href="/search">
                 <Button className="mt-2 px-6 py-3">Back to Search</Button>
