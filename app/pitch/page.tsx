@@ -121,7 +121,7 @@ const ProblemSlide: React.FC = () => (
       </GradientCard>
       <GradientCard title="Real World Example">
         <p className="text-emerald-800 italic">
-        &quot;While working as a business intelligence analyst, I witnessed more time being spent researching a tenant than vetting a $50,000 investment in a founder.&quot;
+        &quot;While working as a business intelligence analyst, I witnessed more resources devoted to researching a tenant than vetting a $50,000 investment in a founder.&quot;
         </p>
       </GradientCard>
     </div>
@@ -180,9 +180,9 @@ const MarketSlide: React.FC = () => (
       <div className="space-y-8">
         <div className="grid grid-cols-3 gap-6">
           {[
-            { number: "335,000", label: "Active Angel Investors in US" },
+            { number: "335,000", label: "Active Angel Investors in the US" },
             { number: "20,000+", label: "Active Investors in Canada" },
-            { number: "11,550", label: "Active Investors in UK" }
+            { number: "11,550", label: "Active Investors in the UK" }
           ].map((stat, index) => (
             <GradientCard key={index} delay={0.2 * index}>
               <motion.div
@@ -216,7 +216,7 @@ const MarketSlide: React.FC = () => (
         <GradientCard title="Free Tier" delay={0.2}>
           <ul className="space-y-2 text-emerald-800">
             <li>• 3 free intelligence reports</li>
-            <li>• Basic company analysis</li>
+            <li>• Company analysis</li>
             <li>• Due diligence essentials</li>
             <li className="text-emerald-600 mt-4 font-medium">Try before you buy</li>
           </ul>
@@ -235,7 +235,7 @@ const MarketSlide: React.FC = () => (
             <li>• 20 intelligence reports per month</li>
             <li>• Due diligence reports</li>
             <li>• Company analysis</li>
-            <li>• Basic assessments</li>
+            <li>• Insightful assessments</li>
           </ul>
           <motion.div 
             className="mt-4 p-2 bg-emerald-50 rounded-lg text-emerald-600 text-sm"
@@ -451,15 +451,15 @@ const MarketSlide: React.FC = () => (
             <ul className="space-y-3 text-emerald-800">
               <li className="flex items-center space-x-2">
                 <Users className="h-5 w-5 text-emerald-600" />
-                <span>Background in Business Intelligence</span>
+                <span>Background in Creative Endeavours</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Target className="h-5 w-5 text-emerald-600" />
-                <span>Experience with VCs and Angel Investors</span>
+                <span>Worked with VCs and Angel Investors</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Search className="h-5 w-5 text-emerald-600" />
-                <span>Expertise in Data Analysis</span>
+                <span>Diverse Skill Set & Entrpreneurial</span>
               </li>
             </ul>
           </motion.div>
@@ -474,15 +474,15 @@ const MarketSlide: React.FC = () => (
             <ul className="space-y-3 text-emerald-800">
               <li className="flex items-center space-x-2">
                 <Zap className="h-5 w-5 text-emerald-600" />
-                <span>Future Sales Reps</span>
+                <span>Sales Reps</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Shield className="h-5 w-5 text-emerald-600" />
-                <span>Future Advisors</span>
+                <span>Advisors</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Code className="h-5 w-5 text-emerald-600" />
-                <span>Future Developers</span>
+                <span>Developers</span>
               </li>
             </ul>
           </motion.div>
